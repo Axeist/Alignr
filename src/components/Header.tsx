@@ -16,7 +16,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0F172A]/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur-md shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
@@ -33,49 +33,39 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-8">
             <Link
               to="/"
-              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
+              className="text-sm font-medium text-gray-700 hover:text-[#0066FF] transition-colors"
             >
               Home
             </Link>
-            <a
-              href="#features"
-              onClick={(e) => {
-                e.preventDefault();
-                const element = document.getElementById('features');
-                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
+            <Link
+              to="/auth"
+              className="text-sm font-medium text-[#0066FF] hover:text-[#0052CC] transition-colors"
             >
-              Features
-            </a>
-            <a
-              href="#testimonials"
-              onClick={(e) => {
-                e.preventDefault();
-                const element = document.getElementById('testimonials');
-                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
+              Careers
+            </Link>
+            <Link
+              to="/auth"
+              className="text-sm font-medium text-[#0066FF] hover:text-[#0052CC] transition-colors"
             >
-              Testimonials
-            </a>
+              Alumni
+            </Link>
             {!user ? (
               <div className="flex items-center gap-4">
                 <Link to="/auth">
-                  <Button variant="ghost" className="text-gray-300 hover:text-white">
+                  <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
                     Sign In
                   </Button>
                 </Link>
                 <Link to="/auth">
-                  <Button className="gradient-accent text-black font-semibold glow-neon">
-                    Get Started
+                  <Button className="bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full">
+                    Contact
                   </Button>
                 </Link>
               </div>
             ) : (
               <div className="flex items-center gap-4">
                 <Link to={getDashboardPath(userRole || "student")}>
-                  <Button variant="ghost" className="text-gray-300 hover:text-white">
+                  <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
                     <User className="h-4 w-4 mr-2" />
                     Dashboard
                   </Button>
@@ -83,7 +73,7 @@ export function Header() {
                 <Button
                   variant="ghost"
                   onClick={handleSignOut}
-                  className="text-gray-300 hover:text-white"
+                  className="text-gray-700 hover:text-gray-900"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
@@ -96,7 +86,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden text-white"
+            className="md:hidden text-gray-700"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -109,49 +99,39 @@ export function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-white/10 py-4 space-y-4"
+            className="md:hidden border-t border-gray-200 py-4 space-y-4 bg-white"
           >
             <Link
               to="/"
-              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
+              className="block text-sm font-medium text-gray-700 hover:text-[#0066FF] transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               Home
             </Link>
-            <a
-              href="#features"
-              onClick={(e) => {
-                e.preventDefault();
-                setMobileMenuOpen(false);
-                const element = document.getElementById('features');
-                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
+            <Link
+              to="/auth"
+              className="block text-sm font-medium text-[#0066FF] hover:text-[#0052CC] transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
             >
-              Features
-            </a>
-            <a
-              href="#testimonials"
-              onClick={(e) => {
-                e.preventDefault();
-                setMobileMenuOpen(false);
-                const element = document.getElementById('testimonials');
-                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
+              Careers
+            </Link>
+            <Link
+              to="/auth"
+              className="block text-sm font-medium text-[#0066FF] hover:text-[#0052CC] transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
             >
-              Testimonials
-            </a>
+              Alumni
+            </Link>
             {!user ? (
               <div className="flex flex-col gap-2 pt-4">
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full text-gray-300">
+                  <Button variant="ghost" className="w-full text-gray-700">
                     Sign In
                   </Button>
                 </Link>
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full gradient-accent text-black font-semibold">
-                    Get Started
+                  <Button className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full">
+                    Contact
                   </Button>
                 </Link>
               </div>
@@ -161,7 +141,7 @@ export function Header() {
                   to={getDashboardPath(userRole || "student")}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Button variant="ghost" className="w-full text-gray-300">
+                  <Button variant="ghost" className="w-full text-gray-700">
                     <User className="h-4 w-4 mr-2" />
                     Dashboard
                   </Button>
@@ -172,7 +152,7 @@ export function Header() {
                     handleSignOut();
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-gray-300"
+                  className="w-full text-gray-700"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out

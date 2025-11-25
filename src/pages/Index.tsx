@@ -97,19 +97,19 @@ const Index = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-r from-gray-50 via-blue-50 to-blue-100 text-gray-900 flex flex-col">
       <Header />
       
       <main className="flex-1">
         {/* Hero Section */}
-        <section id="hero" className="relative overflow-hidden pt-12 pb-32 px-4">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#6366F1]/20 via-transparent to-[#CAFF00]/10 blur-3xl" />
+        <section id="hero" className="relative overflow-hidden pt-20 pb-32 px-4">
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-blue-50 to-blue-200" />
           <div className="container mx-auto relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-center space-y-8 max-w-5xl mx-auto"
+              className="text-center space-y-8 max-w-4xl mx-auto"
             >
               {/* Logo in Hero */}
               <motion.div
@@ -124,34 +124,32 @@ const Index = () => {
                   className="h-32 md:h-48 lg:h-56 w-auto"
                 />
               </motion.div>
-              <p className="text-2xl md:text-4xl text-gray-300 font-light">
-                AI-Powered Career Development & Placement Ecosystem
-              </p>
-              <p className="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+              
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
+                Connect Your Career Journey with Alumni Networks
+              </h1>
+              
+              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 Connect students with opportunities, empower colleges with insights, and help employers find the perfect talent—all powered by intelligent AI.
               </p>
+              
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
                 {user ? (
                   <Link to={getDashboardLink()}>
-                    <Button size="lg" className="gradient-accent text-black px-8 py-6 text-lg font-semibold glow-neon hover:scale-105 transition-transform">
+                    <Button size="lg" className="bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 px-8 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
                       Go to Dashboard <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
                 ) : (
                   <>
                     <Link to="/auth">
-                      <Button size="lg" className="gradient-accent text-black px-8 py-6 text-lg font-semibold glow-neon hover:scale-105 transition-transform">
-                        Get Started as Student
+                      <Button size="lg" className="bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 px-8 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
+                        Join Now
                       </Button>
                     </Link>
                     <Link to="/auth">
-                      <Button size="lg" variant="outline" className="glass border-[#CAFF00]/50 text-[#CAFF00] px-8 py-6 text-lg hover:bg-[#CAFF00]/10 hover:border-[#CAFF00]">
-                        Post Jobs
-                      </Button>
-                    </Link>
-                    <Link to="/auth">
-                      <Button size="lg" variant="outline" className="glass border-[#0066FF]/50 text-[#0066FF] px-8 py-6 text-lg hover:bg-[#0066FF]/10 hover:border-[#0066FF]">
-                        For Colleges
+                      <Button size="lg" variant="outline" className="border-2 border-[#CAFF00] text-[#CAFF00] bg-transparent hover:bg-[#CAFF00]/10 px-8 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-transform">
+                        Explore Opportunities
                       </Button>
                     </Link>
                   </>
@@ -162,8 +160,7 @@ const Index = () => {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-20 px-4 relative scroll-mt-20">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#CAFF00]/5 to-transparent" />
+        <section id="features" className="py-20 px-4 relative scroll-mt-20 bg-white">
           <div className="container mx-auto relative z-10">
             <motion.div
               initial={{ opacity: 0 }}
@@ -172,12 +169,10 @@ const Index = () => {
               transition={{ duration: 0.6 }}
               className="text-center mb-16"
             >
-              <h2 className="text-4xl md:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
-                  Powerful Features
-                </span>
+              <h2 className="text-4xl md:text-6xl font-bold mb-4 text-gray-900">
+                Powerful Features
               </h2>
-              <p className="text-xl text-gray-400">Everything you need to build your career</p>
+              <p className="text-xl text-gray-600">Everything you need to build your career</p>
             </motion.div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -190,15 +185,15 @@ const Index = () => {
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                   whileHover={{ y: -5 }}
                 >
-                  <Card className={`glass-hover h-full border-[#CAFF00]/20 hover:border-[#CAFF00]/40 transition-all ${feature.gradient} bg-gradient-to-br`}>
+                  <Card className="h-full border border-gray-200 hover:border-[#0066FF]/50 transition-all bg-white shadow-md hover:shadow-xl">
                     <CardHeader>
                       <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-[#0066FF]/20 via-[#06B6D4]/20 to-[#CAFF00]/20 flex items-center justify-center mb-4">
-                        <feature.icon className="h-7 w-7 text-[#CAFF00]" />
+                        <feature.icon className="h-7 w-7 text-[#0066FF]" />
                       </div>
-                      <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
+                      <CardTitle className="text-xl text-gray-900">{feature.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <CardDescription className="text-gray-300 leading-relaxed">
+                      <CardDescription className="text-gray-600 leading-relaxed">
                         {feature.description}
                       </CardDescription>
                     </CardContent>
@@ -210,9 +205,8 @@ const Index = () => {
         </section>
 
         {/* Stats Section */}
-        <section className="py-20 px-4 bg-gradient-to-r from-[#6366F1]/10 via-[#CAFF00]/5 to-[#06B6D4]/10 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(202,255,0,0.1),transparent_50%)]" />
-          <div className="container mx-auto relative z-10">
+        <section className="py-20 px-4 bg-blue-100">
+          <div className="container mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {stats.map((stat, index) => (
                 <motion.div
@@ -223,11 +217,11 @@ const Index = () => {
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                   className="text-center"
                 >
-                  <stat.icon className={`h-12 w-12 ${stat.color} mx-auto mb-4`} />
-                  <div className={`text-4xl md:text-5xl font-bold mb-2 ${stat.color}`}>
+                  <stat.icon className="h-12 w-12 text-[#0066FF] mx-auto mb-4" />
+                  <div className="text-4xl md:text-5xl font-bold mb-2 text-[#0066FF]">
                     {stat.value}
                   </div>
-                  <div className="text-gray-400">{stat.label}</div>
+                  <div className="text-gray-700">{stat.label}</div>
                 </motion.div>
               ))}
             </div>
@@ -235,7 +229,7 @@ const Index = () => {
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" className="py-20 px-4 scroll-mt-20">
+        <section id="testimonials" className="py-20 px-4 scroll-mt-20 bg-gradient-to-b from-white to-blue-50">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0 }}
@@ -244,12 +238,10 @@ const Index = () => {
               transition={{ duration: 0.6 }}
               className="text-center mb-16"
             >
-              <h2 className="text-4xl md:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
-                  What People Say
-                </span>
+              <h2 className="text-4xl md:text-6xl font-bold mb-4 text-gray-900">
+                What People Say
               </h2>
-              <p className="text-xl text-gray-400">Trusted by students, colleges, and employers</p>
+              <p className="text-xl text-gray-600">Trusted by students, colleges, and employers</p>
             </motion.div>
             
             <div className="grid md:grid-cols-3 gap-6">
@@ -262,20 +254,20 @@ const Index = () => {
                   transition={{ duration: 0.4, delay: index * 0.1 }}
                   whileHover={{ y: -5 }}
                 >
-                  <Card className="glass-hover h-full border-[#CAFF00]/20 hover:border-[#CAFF00]/40 transition-all">
+                  <Card className="h-full border border-gray-200 hover:border-[#0066FF]/50 transition-all bg-white shadow-md hover:shadow-xl">
                     <CardHeader>
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#CAFF00] to-[#FFFF00] flex items-center justify-center text-black font-bold">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-[#CAFF00] to-[#B8E600] flex items-center justify-center text-gray-900 font-bold">
                           {testimonial.avatar}
                         </div>
                         <div>
-                          <CardTitle className="text-lg text-white">{testimonial.name}</CardTitle>
-                          <CardDescription className="text-[#CAFF00]">{testimonial.role}</CardDescription>
+                          <CardTitle className="text-lg text-gray-900">{testimonial.name}</CardTitle>
+                          <CardDescription className="text-[#0066FF]">{testimonial.role}</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-gray-300 italic leading-relaxed">"{testimonial.content}"</p>
+                      <p className="text-gray-700 italic leading-relaxed">"{testimonial.content}"</p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -285,29 +277,26 @@ const Index = () => {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 px-4">
+        <section className="py-20 px-4 bg-gradient-to-r from-white to-blue-50">
           <div className="container mx-auto max-w-4xl">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="glass rounded-3xl p-12 md:p-16 text-center border-2 border-[#CAFF00]/30 relative overflow-hidden"
+              className="bg-white rounded-3xl p-12 md:p-16 text-center border border-gray-200 shadow-xl relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#CAFF00]/10 via-transparent to-[#6366F1]/10" />
               <div className="relative z-10">
-                <Zap className="h-16 w-16 text-[#CAFF00] mx-auto mb-6" />
-                <h2 className="text-4xl md:text-6xl font-bold mb-6">
-                  <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
-                    Ready to Transform Your Career?
-                  </span>
+                <Zap className="h-16 w-16 text-[#0066FF] mx-auto mb-6" />
+                <h2 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900">
+                  Ready to Transform Your Career?
                 </h2>
-                <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+                <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
                   Join thousands of students, colleges, and employers already using Alignr to accelerate career growth
                 </p>
                 {!user && (
                   <Link to="/auth">
-                    <Button size="lg" className="gradient-accent text-black px-12 py-6 text-lg font-semibold glow-neon hover:scale-105 transition-transform">
+                    <Button size="lg" className="bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 px-12 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
                       Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                   </Link>
