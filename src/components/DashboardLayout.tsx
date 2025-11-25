@@ -94,7 +94,7 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
         )}>
           <Link to="/" className="flex items-center justify-center group flex-shrink-0 w-full">
             <motion.img
-              src="/favicon.ico"
+              src={sidebarOpen ? "https://iili.io/fqdZCfn.png" : "/favicon.ico"}
               alt="Alignr Logo"
               className={cn(
                 "transition-all duration-300 object-contain",
@@ -212,7 +212,7 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
           <div className="p-6 border-b border-blue-200/50">
             <Link to="/" className="flex items-center justify-center" onClick={() => setMobileMenuOpen(false)}>
               <img
-                src="/favicon.ico"
+                src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
                 className="h-24 w-auto object-contain"
               />
