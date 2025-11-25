@@ -4,7 +4,8 @@
 -- Drop existing restrictive policy if it exists
 DROP POLICY IF EXISTS "Admins can manage colleges" ON public.colleges;
 
--- Allow everyone to view colleges (already exists but ensure it's there)
+-- Allow everyone to view colleges (policy should already exist, but ensure it's there)
+-- Note: If policy exists, this will fail but that's okay
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -13,9 +14,11 @@ BEGIN
     AND tablename = 'colleges' 
     AND policyname = 'Everyone can view colleges'
   ) THEN
-    CREATE POLICY "Everyone can view colleges" ON public.colleges 
-    FOR SELECT USING (true);
+    EXECUTE 'CREATE POLICY "Everyone can view colleges" ON public.colleges FOR SELECT USING (true)';
   END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL; -- Policy already exists, that's fine
 END $$;
 
 -- Allow authenticated users to insert colleges
@@ -28,7 +31,7 @@ CREATE POLICY "Admins can manage colleges" ON public.colleges
 FOR ALL 
 USING (public.has_role(auth.uid(), 'admin'));
 
--- College admins can update own college (already exists but ensure it's there)
+-- College admins can update own college (policy should already exist)
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -37,10 +40,11 @@ BEGIN
     AND tablename = 'colleges' 
     AND policyname = 'College admins can update own college'
   ) THEN
-    CREATE POLICY "College admins can update own college" ON public.colleges 
-    FOR UPDATE 
-    USING (auth.uid() = admin_id);
+    EXECUTE 'CREATE POLICY "College admins can update own college" ON public.colleges FOR UPDATE USING (auth.uid() = admin_id)';
   END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL; -- Policy already exists, that's fine
 END $$;
 
 -- Create a function to find or create a college (for better error handling)

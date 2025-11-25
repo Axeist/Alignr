@@ -47,21 +47,53 @@ export default function StudentProfile() {
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
+      // Fetch profile with college data
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("*, colleges(*)")
+        .select("*")
         .eq("user_id", user.id)
         .single();
-      if (error) throw error;
-      return data;
+      
+      if (profileError) throw profileError;
+      
+      // If college_id exists, fetch college details
+      let collegeData = null;
+      const collegeId = (profileData as any)?.college_id;
+      if (collegeId) {
+        const { data: college, error: collegeError } = await supabase
+          .from("colleges")
+          .select("*")
+          .eq("id", collegeId)
+          .single();
+        
+        if (!collegeError && college) {
+          collegeData = college;
+        }
+      }
+      
+      return {
+        ...profileData,
+        college: collegeData,
+      } as any;
     },
     enabled: !!user,
   });
 
-  // Get college from our list
-  const selectedCollegeId = profile?.colleges?.name 
-    ? colleges.find(c => c.name === profile.colleges.name)?.id || ""
-    : "";
+  // Track selected college for display
+  const [selectedCollege, setSelectedCollege] = useState<string>("");
+  
+  // Get college from database and match with our list
+  const currentCollegeFromDb = profile?.college?.name;
+  
+  // Update selected college when profile changes
+  useEffect(() => {
+    if (profile?.college?.name) {
+      const collegeId = colleges.find(c => c.name === profile.college.name)?.id || "";
+      setSelectedCollege(collegeId);
+    } else {
+      setSelectedCollege("");
+    }
+  }, [profile]);
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
@@ -140,7 +172,7 @@ export default function StudentProfile() {
       if (!college) throw new Error("College not found");
 
       // Try using database function first (bypasses RLS issues)
-      const { data: collegeDbId, error: functionError } = await supabase.rpc(
+      const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
         'find_or_create_college',
         {
           p_name: college.name,
@@ -152,7 +184,7 @@ export default function StudentProfile() {
 
       if (!functionError && collegeDbId) {
         // Function worked, use its result
-        finalCollegeId = collegeDbId;
+        finalCollegeId = collegeDbId as string;
       } else {
         // Fallback: direct database operations (now allowed via RLS policy)
         let { data: existingCollege } = await supabase
@@ -194,6 +226,7 @@ export default function StudentProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      setCollegeSearchOpen(false);
       toast({
         title: "Success",
         description: "College updated successfully!",
@@ -251,8 +284,8 @@ export default function StudentProfile() {
         linkedin_url: profile.linkedin_url || "",
         github_url: profile.github_url || "",
         portfolio_url: profile.portfolio_url || "",
-        year: profile.year || undefined,
-        department: profile.department || "",
+        year: (profile as any).year || undefined,
+        department: (profile as any).department || "",
       });
     }
   }, [profile]);
@@ -458,9 +491,9 @@ export default function StudentProfile() {
                         aria-expanded={collegeSearchOpen}
                         className="w-full justify-between"
                       >
-                        {selectedCollegeId
-                          ? getCollegeById(selectedCollegeId)?.name || "Select college..."
-                          : profile?.colleges?.name || "Select college..."}
+                        {selectedCollege
+                          ? getCollegeById(selectedCollege)?.name || currentCollegeFromDb || "Select college..."
+                          : currentCollegeFromDb || "Select college..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -491,6 +524,7 @@ export default function StudentProfile() {
                                       key={college.id}
                                       value={`${college.name} ${college.location} ${college.state}`}
                                       onSelect={() => {
+                                        setSelectedCollege(college.id);
                                         updateCollegeMutation.mutate(college.id);
                                         setCollegeSearchOpen(false);
                                       }}
@@ -498,7 +532,7 @@ export default function StudentProfile() {
                                       <Check
                                         className={cn(
                                           "mr-2 h-4 w-4",
-                                          selectedCollegeId === college.id ? "opacity-100" : "opacity-0"
+                                          selectedCollege === college.id ? "opacity-100" : "opacity-0"
                                         )}
                                       />
                                       <div className="flex flex-col">
@@ -523,12 +557,12 @@ export default function StudentProfile() {
                   )}
                 </div>
 
-                {profile?.colleges && (
+                {profile?.college && (
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold mb-2">Current College</h4>
-                    <p className="text-sm">{profile.colleges.name}</p>
-                    {profile.colleges.location && (
-                      <p className="text-sm text-gray-500">{profile.colleges.location}</p>
+                    <p className="text-sm">{profile.college.name}</p>
+                    {profile.college.location && (
+                      <p className="text-sm text-gray-500">{profile.college.location}</p>
                     )}
                   </div>
                 )}
