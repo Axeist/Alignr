@@ -83,12 +83,12 @@ const Index = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex justify-center mb-12"
+                className="flex justify-center mb-4"
               >
                 <img
                   src="https://iili.io/fqdZCfn.png"
                   alt="Alignr Logo"
-                  className="h-40 md:h-56 lg:h-72 w-auto drop-shadow-lg"
+                  className="h-48 md:h-64 lg:h-80 xl:h-96 w-auto drop-shadow-lg"
                 />
               </motion.div>
               

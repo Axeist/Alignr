@@ -18,13 +18,13 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-md shadow-sm">
       <div className="container mx-auto px-4">
-        <div className="flex h-24 items-center justify-between">
+        <div className="flex h-28 md:h-32 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center group">
             <motion.img
               src="https://iili.io/fqdZCfn.png"
               alt="Alignr Logo"
-              className="h-20 w-auto transition-transform group-hover:scale-105"
+              className="h-28 md:h-32 w-auto transition-transform group-hover:scale-105"
               whileHover={{ scale: 1.05 }}
             />
           </Link>
