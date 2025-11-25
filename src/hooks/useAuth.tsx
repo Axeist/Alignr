@@ -43,7 +43,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRole = async (userId: string): Promise<UserRole | null> => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -52,9 +52,12 @@ export function useAuth() {
         .single();
 
       if (error) throw error;
-      setUserRole(data?.role as UserRole);
+      const role = data?.role as UserRole;
+      setUserRole(role);
+      return role;
     } catch (error) {
       console.error("Error fetching user role:", error);
+      return null;
     }
   };
 
@@ -124,6 +127,11 @@ export function useAuth() {
 
       if (error) throw error;
 
+      // Fetch role after successful login
+      if (data.user) {
+        await fetchUserRole(data.user.id);
+      }
+
       toast({
         title: "Welcome back!",
         description: "Successfully signed in.",
@@ -137,6 +145,25 @@ export function useAuth() {
         variant: "destructive",
       });
       return { data: null, error };
+    }
+  };
+
+  const signInWithOAuth = async (provider: "google" | "linkedin" | "github") => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -158,6 +185,17 @@ export function useAuth() {
     }
   };
 
+  const getDashboardPath = (role: UserRole | null): string => {
+    if (!role) return "/auth";
+    const dashboardMap: Record<UserRole, string> = {
+      student: "/student/dashboard",
+      alumni: "/alumni/dashboard",
+      college: "/college/dashboard",
+      admin: "/admin/dashboard",
+    };
+    return dashboardMap[role] || "/auth";
+  };
+
   return {
     user,
     session,
@@ -165,6 +203,9 @@ export function useAuth() {
     userRole,
     signUp,
     signIn,
+    signInWithOAuth,
     signOut,
+    getDashboardPath,
+    fetchUserRole,
   };
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, UserRole } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Github, Linkedin, Chrome } from "lucide-react";
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, signInWithOAuth, user, userRole, getDashboardPath, fetchUserRole } = useAuth();
   const [loading, setLoading] = useState(false);
 
   // Sign In State
@@ -23,28 +25,46 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("student");
 
-  if (user) {
-    navigate("/");
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && userRole) {
+      navigate(getDashboardPath(userRole), { replace: true });
+    }
+  }, [user, userRole, navigate, getDashboardPath]);
+
+  if (user && userRole) {
     return null;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(signInEmail, signInPassword);
+    const { error, data } = await signIn(signInEmail, signInPassword);
     setLoading(false);
-    if (!error) {
-      navigate("/");
+    if (!error && data?.user) {
+      // Wait for role to be fetched
+      const role = await fetchUserRole(data.user.id);
+      if (role) {
+        navigate(getDashboardPath(role), { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signUp(signUpEmail, signUpPassword, fullName, role);
+    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role);
     setLoading(false);
-    if (!error) {
-      navigate("/");
+    if (!error && data?.user) {
+      // Wait for role to be fetched
+      const fetchedRole = await fetchUserRole(data.user.id);
+      if (fetchedRole) {
+        navigate(getDashboardPath(fetchedRole), { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     }
   };
 
@@ -90,6 +110,38 @@ export default function Auth() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
+                <div className="relative my-4">
+                  <Separator />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="bg-background px-2 text-xs text-muted-foreground">OR</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("google")}
+                    className="w-full"
+                  >
+                    <Chrome className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("linkedin")}
+                    className="w-full"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("github")}
+                    className="w-full"
+                  >
+                    <Github className="h-4 w-4" />
+                  </Button>
+                </div>
               </form>
             </TabsContent>
             
@@ -138,12 +190,45 @@ export default function Auth() {
                       <SelectItem value="student">Student</SelectItem>
                       <SelectItem value="alumni">Alumni/Startup</SelectItem>
                       <SelectItem value="college">College/TPO</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
+                <div className="relative my-4">
+                  <Separator />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="bg-background px-2 text-xs text-muted-foreground">OR</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("google")}
+                    className="w-full"
+                  >
+                    <Chrome className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("linkedin")}
+                    className="w-full"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => signInWithOAuth("github")}
+                    className="w-full"
+                  >
+                    <Github className="h-4 w-4" />
+                  </Button>
+                </div>
               </form>
             </TabsContent>
           </Tabs>

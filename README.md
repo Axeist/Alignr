@@ -249,6 +249,47 @@ The platform uses Google Gemini for:
 
 [Add your license here]
 
+## 👤 Admin User Setup
+
+The platform includes a hardcoded admin user for testing and management:
+
+- **Email**: `ranjithkirloskar@gmail.com`
+- **Password**: `Sisacropole2198$`
+
+### Quick Setup
+
+1. **Create the user in Supabase Dashboard**:
+   - Go to Authentication > Users > Add User
+   - Email: `ranjithkirloskar@gmail.com`
+   - Password: `Sisacropole2198$`
+   - Auto Confirm: ✅
+
+2. **Assign admin role** (run in SQL Editor):
+```sql
+DO $$
+DECLARE
+  admin_user_id UUID;
+BEGIN
+  SELECT id INTO admin_user_id
+  FROM auth.users
+  WHERE email = 'ranjithkirloskar@gmail.com';
+
+  IF admin_user_id IS NOT NULL THEN
+    INSERT INTO public.profiles (user_id, full_name, email, role)
+    VALUES (admin_user_id, 'Admin User', 'ranjithkirloskar@gmail.com', 'admin')
+    ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
+
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (admin_user_id, 'admin')
+    ON CONFLICT (user_id, role) DO NOTHING;
+  END IF;
+END $$;
+```
+
+3. **Verify**: Log in at `/auth` with the admin credentials
+
+For detailed instructions, see [ADMIN_SETUP.md](./ADMIN_SETUP.md)
+
 ## 🆘 Support
 
 For issues and questions, please open an issue on GitHub.

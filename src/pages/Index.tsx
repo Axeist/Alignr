@@ -17,22 +17,11 @@ import {
 } from "lucide-react";
 
 const Index = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, getDashboardPath } = useAuth();
 
   const getDashboardLink = () => {
-    if (!userRole) return "/auth";
-    switch (userRole) {
-      case "student":
-        return "/student/dashboard";
-      case "alumni":
-        return "/alumni/dashboard";
-      case "college":
-        return "/college/dashboard";
-      case "admin":
-        return "/admin/dashboard";
-      default:
-        return "/auth";
-    }
+    if (!user || !userRole) return "/auth";
+    return getDashboardPath(userRole);
   };
 
   const features = [
