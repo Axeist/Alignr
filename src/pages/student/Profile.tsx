@@ -139,40 +139,58 @@ export default function StudentProfile() {
       const college = getCollegeById(collegeId);
       if (!college) throw new Error("College not found");
 
-      // Check if college exists in DB, create if not
-      let { data: existingCollege } = await supabase
-        .from("colleges")
-        .select("id")
-        .eq("name", college.name)
-        .single();
+      // Try using database function first (bypasses RLS issues)
+      const { data: collegeDbId, error: functionError } = await supabase.rpc(
+        'find_or_create_college',
+        {
+          p_name: college.name,
+          p_location: college.location,
+        }
+      );
 
-      let collegeDbId: string;
-      if (existingCollege) {
-        collegeDbId = existingCollege.id;
+      let finalCollegeId: string;
+
+      if (!functionError && collegeDbId) {
+        // Function worked, use its result
+        finalCollegeId = collegeDbId;
       } else {
-        const { data: newCollege, error: createError } = await supabase
+        // Fallback: direct database operations (now allowed via RLS policy)
+        let { data: existingCollege } = await supabase
           .from("colleges")
-          .insert({
-            name: college.name,
-            location: college.location,
-          })
           .select("id")
-          .single();
-        
-        if (createError) throw createError;
-        collegeDbId = newCollege.id;
+          .eq("name", college.name)
+          .maybeSingle();
+
+        if (existingCollege) {
+          finalCollegeId = existingCollege.id;
+        } else {
+          // Try to create the college (now allowed via RLS policy)
+          const { data: newCollege, error: createError } = await supabase
+            .from("colleges")
+            .insert({
+              name: college.name,
+              location: college.location,
+            })
+            .select("id")
+            .single();
+          
+          if (createError) {
+            throw new Error(`Failed to create college: ${createError.message}`);
+          }
+          finalCollegeId = newCollege.id;
+        }
       }
 
       // Update profile with college_id
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("profiles")
         .update({
-          college_id: collegeDbId,
+          college_id: finalCollegeId,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
