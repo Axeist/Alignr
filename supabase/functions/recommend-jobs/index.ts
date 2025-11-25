@@ -4,14 +4,31 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { user_id, filters } = await req.json();
 
     if (!user_id) {
       return new Response(
         JSON.stringify({ error: "Missing user_id" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -33,10 +50,21 @@ serve(async (req) => {
     const linkedin = linkedinResult.data;
 
     // Build job query with filters
+    // Show jobs that are approved/active AND either:
+    // - Have no college_id (open to all colleges)
+    // - Match the student's college_id
     let jobQuery = supabaseClient
       .from("jobs")
       .select("*")
       .in("status", ["approved", "active"]);
+
+    // Filter by college: show jobs with no college_id (all colleges) or matching student's college
+    if (profile?.college_id) {
+      jobQuery = jobQuery.or(`college_id.is.null,college_id.eq.${profile.college_id}`);
+    } else {
+      // If student has no college, only show jobs with no college_id (open to all)
+      jobQuery = jobQuery.is("college_id", null);
+    }
 
     if (filters?.role) {
       jobQuery = jobQuery.ilike("title", `%${filters.role}%`);
@@ -130,12 +158,23 @@ Return ONLY valid JSON.`;
         success: true,
         jobs: jobsWithScores.slice(0, 20) // Return top 20
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error: any) {
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   }
 });

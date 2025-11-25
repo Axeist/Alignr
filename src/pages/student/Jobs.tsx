@@ -52,7 +52,7 @@ export default function JobBoard() {
   ];
 
   // Fetch jobs with match scores
-  const { data: jobsData, isLoading } = useQuery({
+  const { data: jobsData, isLoading, error: jobsError } = useQuery({
     queryKey: ["jobs", user?.id, searchQuery, selectedRole, selectedLocation],
     queryFn: async () => {
       if (!user) return { jobs: [] };
@@ -68,10 +68,19 @@ export default function JobBoard() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching jobs:", error);
+        toast.error(error.message || "Failed to load jobs");
+        throw error;
+      }
       return data || { jobs: [] };
     },
-    enabled: !!user
+    enabled: !!user,
+    retry: 2,
+    onError: (error: any) => {
+      console.error("Jobs query error:", error);
+      toast.error(error.message || "Failed to load jobs. Please try again.");
+    }
   });
 
   // Fetch user resumes
@@ -236,6 +245,14 @@ export default function JobBoard() {
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
                 <p className="mt-2 text-gray-400">Loading jobs...</p>
               </div>
+            ) : jobsError ? (
+              <Card className="glass-hover">
+                <CardContent className="pt-6 text-center py-12">
+                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-red-400" />
+                  <p className="text-red-400 mb-2">Error loading jobs</p>
+                  <p className="text-gray-400 text-sm">{jobsError.message || "Please try again later"}</p>
+                </CardContent>
+              </Card>
             ) : filteredJobs.length === 0 ? (
               <Card className="glass-hover">
                 <CardContent className="pt-6 text-center py-12">
