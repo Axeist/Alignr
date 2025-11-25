@@ -72,7 +72,41 @@ export default function LinkedInAnalysis() {
         body: payload
       });
 
-      if (error) throw error;
+      // Check if response contains an error (even if error object is null)
+      if (data?.error) {
+        const customError = new Error(data.error);
+        (customError as any).code = data.code;
+        (customError as any).details = data.details;
+        throw customError;
+      }
+
+      if (error) {
+        // Try to extract error details from error object
+        let errorData = {};
+        try {
+          // Error might have context or message with JSON
+          if (error.context?.body) {
+            errorData = error.context.body;
+          } else if (error.message) {
+            // Try to parse error message as JSON
+            const jsonMatch = error.message.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              errorData = JSON.parse(jsonMatch[0]);
+            }
+          }
+        } catch {
+          // If parsing fails, use error as-is
+        }
+
+        if (errorData.code === "QUOTA_EXCEEDED" || errorData.code === "SERVICE_UNAVAILABLE") {
+          const customError = new Error(errorData.error || error.message);
+          (customError as any).code = errorData.code;
+          (customError as any).details = errorData.details;
+          throw customError;
+        }
+        throw error;
+      }
+      
       return data;
     },
     onSuccess: () => {
@@ -80,7 +114,20 @@ export default function LinkedInAnalysis() {
       queryClient.invalidateQueries({ queryKey: ["linkedin-profile", user?.id] });
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to analyze profile");
+      // Handle specific error types with better messages
+      if (error.code === "QUOTA_EXCEEDED") {
+        toast.error(
+          error.details || "AI service is currently at capacity. Please try again in a few minutes.",
+          { duration: 6000 }
+        );
+      } else if (error.code === "SERVICE_UNAVAILABLE") {
+        toast.error(
+          "AI service is temporarily unavailable. Please try again in a few moments.",
+          { duration: 5000 }
+        );
+      } else {
+        toast.error(error.message || "Failed to analyze profile");
+      }
     }
   });
 

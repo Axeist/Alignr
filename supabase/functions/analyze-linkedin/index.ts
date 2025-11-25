@@ -84,7 +84,51 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorText}`);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: { message: errorText } };
+      }
+
+      // Handle specific error cases
+      if (geminiResponse.status === 429) {
+        const errorMessage = errorData?.error?.message || "API quota exceeded";
+        console.error("Gemini API quota exceeded:", errorMessage);
+        return new Response(
+          JSON.stringify({ 
+            error: "AI service is currently at capacity. Please try again later or contact support if this persists.",
+            code: "QUOTA_EXCEEDED",
+            details: "The AI analysis service has reached its usage limit. Please wait a few minutes before trying again."
+          }),
+          { 
+            status: 429,
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+
+      if (geminiResponse.status === 503 || geminiResponse.status === 502) {
+        return new Response(
+          JSON.stringify({ 
+            error: "AI service is temporarily unavailable. Please try again in a few moments.",
+            code: "SERVICE_UNAVAILABLE"
+          }),
+          { 
+            status: 503,
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+
+      // For other errors, throw with more context
+      throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorData?.error?.message || errorText}`);
     }
 
     const geminiData = await geminiResponse.json();
@@ -158,10 +202,29 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
     );
   } catch (error: any) {
     console.error("Error analyzing LinkedIn profile:", error);
+    
+    // Check if it's a known error type
+    const errorMessage = error.message || "Failed to analyze LinkedIn profile";
+    
+    // Provide user-friendly error messages
+    let userMessage = errorMessage;
+    let statusCode = 500;
+    
+    if (errorMessage.includes("quota") || errorMessage.includes("429")) {
+      userMessage = "AI service is currently at capacity. Please try again later.";
+      statusCode = 429;
+    } else if (errorMessage.includes("GEMINI_API_KEY")) {
+      userMessage = "AI service is not properly configured. Please contact support.";
+      statusCode = 503;
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to analyze LinkedIn profile" }),
+      JSON.stringify({ 
+        error: userMessage,
+        code: statusCode === 429 ? "QUOTA_EXCEEDED" : statusCode === 503 ? "SERVICE_UNAVAILABLE" : "INTERNAL_ERROR"
+      }),
       { 
-        status: 500, 
+        status: statusCode, 
         headers: { 
           "Content-Type": "application/json",
           ...corsHeaders
