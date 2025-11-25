@@ -130,6 +130,8 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
 
     if (upsertError) {
       console.error("Error upserting LinkedIn profile:", upsertError);
+      // Don't fail the request if upsert fails - analysis is still valid
+      // Just log the error
     }
 
     return new Response(
