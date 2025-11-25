@@ -28,6 +28,7 @@ export default function AdminJobs() {
 
   const navItems = [
     { label: "Dashboard", href: "/admin/dashboard" },
+    { label: "Approvals", href: "/admin/approvals" },
     { label: "Colleges", href: "/admin/colleges" },
     { label: "Jobs", href: "/admin/jobs" },
     { label: "Users", href: "/admin/users" },

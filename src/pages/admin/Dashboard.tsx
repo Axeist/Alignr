@@ -72,6 +72,7 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout navItems={[
       { label: "Dashboard", href: "/admin/dashboard" },
+      { label: "Approvals", href: "/admin/approvals" },
       { label: "Colleges", href: "/admin/colleges" },
       { label: "Jobs", href: "/admin/jobs" },
       { label: "Users", href: "/admin/users" },
@@ -233,7 +234,7 @@ export default function AdminDashboard() {
                   </CardTitle>
                   <CardDescription>Jobs awaiting moderation</CardDescription>
                 </div>
-                <Link to="/admin/jobs">
+                <Link to="/admin/approvals">
                   <Button variant="outline" size="sm">
                     Review All
                   </Button>

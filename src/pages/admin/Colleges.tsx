@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { Building2, Plus, Search, Edit, Trash2, CheckCircle2, XCircle } from "lucide-react";
+import { Building2, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, UserPlus, Shield, Eye } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -36,6 +37,9 @@ export default function AdminColleges() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [collegeToDelete, setCollegeToDelete] = useState<string | null>(null);
+  const [selectedCollege, setSelectedCollege] = useState<any>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [adminUserId, setAdminUserId] = useState<string>("");
   const [formData, setFormData] = useState({
     name: "",
     location: "",
@@ -44,6 +48,7 @@ export default function AdminColleges() {
 
   const navItems = [
     { label: "Dashboard", href: "/admin/dashboard" },
+    { label: "Approvals", href: "/admin/approvals" },
     { label: "Colleges", href: "/admin/colleges" },
     { label: "Jobs", href: "/admin/jobs" },
     { label: "Users", href: "/admin/users" },
@@ -55,10 +60,26 @@ export default function AdminColleges() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("colleges")
-        .select("*")
+        .select("*, profiles!colleges_admin_id_fkey(full_name, email, user_id)")
         .order("name");
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  // Fetch users for admin assignment
+  const { data: users } = useQuery({
+    queryKey: ["admin-users-for-assignment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, user_roles(role)")
+        .order("full_name");
+      if (error) throw error;
+      // Filter users with college role
+      return (data || []).filter((user: any) => 
+        user.user_roles?.some((ur: any) => ur.role === "college")
+      );
     },
   });
 
@@ -110,6 +131,58 @@ export default function AdminColleges() {
     onError: (error: any) => {
       toast({
         title: "Error deleting college",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Verify college mutation
+  const verifyCollegeMutation = useMutation({
+    mutationFn: async (collegeId: string) => {
+      const { error } = await supabase
+        .from("colleges")
+        .update({ is_verified: true })
+        .eq("id", collegeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "College verified",
+        description: "The college has been verified.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-colleges"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Assign admin mutation
+  const assignAdminMutation = useMutation({
+    mutationFn: async ({ collegeId, adminId }: { collegeId: string; adminId: string }) => {
+      const { error } = await supabase
+        .from("colleges")
+        .update({ admin_id: adminId })
+        .eq("id", collegeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Admin assigned",
+        description: "The college admin has been assigned.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-colleges"] });
+      setAdminUserId("");
+      setViewDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -232,16 +305,28 @@ export default function AdminColleges() {
                         <CardTitle>{college.name}</CardTitle>
                         <p className="text-sm text-gray-400 mt-1">{college.location}</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setCollegeToDelete(college.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedCollege(college);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setCollegeToDelete(college.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -256,12 +341,24 @@ export default function AdminColleges() {
                           Visit Website
                         </a>
                       )}
-                      {college.is_verified && (
-                        <Badge className="bg-green-500/20 text-green-500 border-green-500">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Verified
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {college.is_verified ? (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Verified
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-yellow-500 text-yellow-500">
+                            Unverified
+                          </Badge>
+                        )}
+                        {college.profiles && (
+                          <Badge variant="outline" className="border-blue-500 text-blue-500">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Has Admin
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -269,6 +366,104 @@ export default function AdminColleges() {
             ))}
           </div>
         )}
+
+        {/* View/Manage College Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            {selectedCollege && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedCollege.name}</DialogTitle>
+                  <DialogDescription>College management and settings</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold mb-2">Location</h4>
+                      <p className="text-sm text-gray-300">{selectedCollege.location || "Not specified"}</p>
+                    </div>
+                    {selectedCollege.website && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Website</h4>
+                        <a href={selectedCollege.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                          {selectedCollege.website}
+                        </a>
+                      </div>
+                    )}
+                    {selectedCollege.profiles && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Current Admin</h4>
+                        <p className="text-sm text-gray-300">
+                          {selectedCollege.profiles.full_name} ({selectedCollege.profiles.email})
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-semibold mb-2">Verification Status</h4>
+                      {selectedCollege.is_verified ? (
+                        <Badge className="bg-green-500/20 text-green-500 border-green-500">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-500">
+                          Unverified
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Assign Admin */}
+                  {users && users.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-3">Assign College Admin</h4>
+                      <div className="flex gap-2">
+                        <Select value={adminUserId} onValueChange={setAdminUserId}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {users.map((user: any) => (
+                              <SelectItem key={user.user_id} value={user.user_id}>
+                                {user.full_name} ({user.email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          onClick={() => {
+                            if (adminUserId) {
+                              assignAdminMutation.mutate({ collegeId: selectedCollege.id, adminId: adminUserId });
+                            }
+                          }}
+                          disabled={!adminUserId || assignAdminMutation.isPending}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Assign
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4 border-t">
+                    {!selectedCollege.is_verified && (
+                      <Button
+                        variant="outline"
+                        className="flex-1 border-green-500 text-green-500 hover:bg-green-500/10"
+                        onClick={() => verifyCollegeMutation.mutate(selectedCollege.id)}
+                        disabled={verifyCollegeMutation.isPending}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Verify College
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>

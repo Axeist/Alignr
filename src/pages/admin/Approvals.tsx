@@ -1,0 +1,824 @@
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
+import { 
+  Briefcase, 
+  Building2, 
+  Users, 
+  CheckCircle2, 
+  XCircle, 
+  Eye, 
+  Clock,
+  AlertTriangle,
+  Search,
+  Filter,
+  RefreshCw
+} from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+
+export default function AdminApprovals() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedTab, setSelectedTab] = useState("jobs");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedCollege, setSelectedCollege] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  const navItems = [
+    { label: "Dashboard", href: "/admin/dashboard" },
+    { label: "Approvals", href: "/admin/approvals" },
+    { label: "Colleges", href: "/admin/colleges" },
+    { label: "Jobs", href: "/admin/jobs" },
+    { label: "Users", href: "/admin/users" },
+    { label: "Analytics", href: "/admin/analytics" },
+  ];
+
+  // Fetch pending jobs
+  const { data: pendingJobs, isLoading: jobsLoading } = useQuery({
+    queryKey: ["admin-pending-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*, profiles!jobs_posted_by_fkey(full_name, email), colleges(name)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch unverified colleges
+  const { data: unverifiedColleges, isLoading: collegesLoading } = useQuery({
+    queryKey: ["admin-unverified-colleges"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("colleges")
+        .select("*, profiles!colleges_admin_id_fkey(full_name, email)")
+        .eq("is_verified", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch users without roles or pending verification
+  const { data: pendingUsers, isLoading: usersLoading } = useQuery({
+    queryKey: ["admin-pending-users"],
+    queryFn: async () => {
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("*, user_roles(role), colleges(name)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      
+      if (profilesError) throw profilesError;
+
+      // Filter users without roles or inactive users
+      const filtered = (profiles || []).filter((profile: any) => {
+        const hasRoles = profile.user_roles && profile.user_roles.length > 0;
+        const isInactive = profile.is_active === false;
+        return !hasRoles || isInactive;
+      });
+
+      return filtered;
+    },
+  });
+
+  // Bulk approve jobs
+  const bulkApproveJobsMutation = useMutation({
+    mutationFn: async (jobIds: string[]) => {
+      const { error } = await supabase
+        .from("jobs")
+        .update({ status: "approved" })
+        .in("id", jobIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Jobs approved",
+        description: `${selectedItems.size} job(s) have been approved.`,
+      });
+      setSelectedItems(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-jobs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk reject jobs
+  const bulkRejectJobsMutation = useMutation({
+    mutationFn: async (jobIds: string[]) => {
+      const { error } = await supabase
+        .from("jobs")
+        .update({ status: "rejected" })
+        .in("id", jobIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Jobs rejected",
+        description: `${selectedItems.size} job(s) have been rejected.`,
+      });
+      setSelectedItems(new Set());
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-jobs"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Approve/reject single job
+  const updateJobStatusMutation = useMutation({
+    mutationFn: async ({ jobId, status }: { jobId: string; status: string }) => {
+      const { error } = await supabase
+        .from("jobs")
+        .update({ status })
+        .eq("id", jobId);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: `Job ${variables.status === "approved" ? "approved" : "rejected"}`,
+        description: "The job status has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-jobs"] });
+      setViewDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Verify college
+  const verifyCollegeMutation = useMutation({
+    mutationFn: async (collegeId: string) => {
+      const { error } = await supabase
+        .from("colleges")
+        .update({ is_verified: true })
+        .eq("id", collegeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "College verified",
+        description: "The college has been verified.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-unverified-colleges"] });
+      setViewDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Assign role to user
+  const assignRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: role as any });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Role assigned",
+        description: "The role has been assigned to the user.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-users"] });
+      setViewDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Activate user
+  const activateUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: true })
+        .eq("user_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "User activated",
+        description: "The user has been activated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-users"] });
+      setViewDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const stats = {
+    pendingJobs: pendingJobs?.length || 0,
+    unverifiedColleges: unverifiedColleges?.length || 0,
+    pendingUsers: pendingUsers?.length || 0,
+    total: (pendingJobs?.length || 0) + (unverifiedColleges?.length || 0) + (pendingUsers?.length || 0),
+  };
+
+  const filteredJobs = pendingJobs?.filter((job: any) =>
+    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.company_name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const filteredColleges = unverifiedColleges?.filter((college: any) =>
+    college.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    college.location?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const filteredUsers = pendingUsers?.filter((user: any) =>
+    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const toggleItemSelection = (id: string) => {
+    const newSelection = new Set(selectedItems);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  const selectAll = () => {
+    if (selectedTab === "jobs") {
+      const allIds = filteredJobs.map((j: any) => j.id);
+      setSelectedItems(new Set(allIds));
+    } else if (selectedTab === "colleges") {
+      const allIds = filteredColleges.map((c: any) => c.id);
+      setSelectedItems(new Set(allIds));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
+  return (
+    <DashboardLayout navItems={navItems}>
+      <div className="space-y-6 p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h1 className="text-4xl font-bold mb-2">Approvals Center</h1>
+          <p className="text-gray-400">Review and approve pending items across the platform</p>
+        </motion.div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-1">{stats.total}</div>
+                <div className="text-sm text-gray-400">Total Pending</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-yellow-500 mb-1">{stats.pendingJobs}</div>
+                <div className="text-sm text-gray-400">Pending Jobs</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-500 mb-1">{stats.unverifiedColleges}</div>
+                <div className="text-sm text-gray-400">Unverified Colleges</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-500 mb-1">{stats.pendingUsers}</div>
+                <div className="text-sm text-gray-400">Pending Users</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Bulk Actions */}
+        <Card className="glass-hover">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {selectedTab === "jobs" && selectedItems.size > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSelection}
+                  >
+                    Clear ({selectedItems.size})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-green-500 text-green-500 hover:bg-green-500/10"
+                    onClick={() => bulkApproveJobsMutation.mutate(Array.from(selectedItems))}
+                    disabled={bulkApproveJobsMutation.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Approve Selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-500 text-red-500 hover:bg-red-500/10"
+                    onClick={() => bulkRejectJobsMutation.mutate(Array.from(selectedItems))}
+                    disabled={bulkRejectJobsMutation.isPending}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject Selected
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs */}
+        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+          <TabsList className="glass">
+            <TabsTrigger value="jobs">
+              <Briefcase className="h-4 w-4 mr-2" />
+              Jobs ({stats.pendingJobs})
+            </TabsTrigger>
+            <TabsTrigger value="colleges">
+              <Building2 className="h-4 w-4 mr-2" />
+              Colleges ({stats.unverifiedColleges})
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <Users className="h-4 w-4 mr-2" />
+              Users ({stats.pendingUsers})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Jobs Tab */}
+          <TabsContent value="jobs" className="space-y-4 mt-6">
+            {jobsLoading ? (
+              <div className="text-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+                <p className="mt-2 text-gray-400">Loading jobs...</p>
+              </div>
+            ) : filteredJobs.length === 0 ? (
+              <Card className="glass-hover">
+                <CardContent className="pt-12 pb-12 text-center">
+                  <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No pending jobs</h3>
+                  <p className="text-gray-400">All jobs have been reviewed.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={selectAll}
+                  >
+                    Select All
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {filteredJobs.map((job: any, idx: number) => (
+                    <motion.div
+                      key={job.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                    >
+                      <Card className="glass-hover">
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-4">
+                            <Checkbox
+                              checked={selectedItems.has(job.id)}
+                              onCheckedChange={() => toggleItemSelection(job.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <h3 className="text-xl font-bold">{job.title}</h3>
+                                  <p className="text-gray-400">{job.company_name}</p>
+                                </div>
+                                <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">
+                                  Pending
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                                {job.colleges?.name && <span>{job.colleges.name}</span>}
+                                {job.profiles?.full_name && (
+                                  <span>Posted by {job.profiles.full_name}</span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {new Date(job.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-300 line-clamp-2 mb-4">{job.description}</p>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedJob(job);
+                                    setViewDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-green-500 text-green-500 hover:bg-green-500/10"
+                                  onClick={() => updateJobStatusMutation.mutate({ jobId: job.id, status: "approved" })}
+                                  disabled={updateJobStatusMutation.isPending}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-red-500 text-red-500 hover:bg-red-500/10"
+                                  onClick={() => updateJobStatusMutation.mutate({ jobId: job.id, status: "rejected" })}
+                                  disabled={updateJobStatusMutation.isPending}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* Colleges Tab */}
+          <TabsContent value="colleges" className="space-y-4 mt-6">
+            {collegesLoading ? (
+              <div className="text-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+                <p className="mt-2 text-gray-400">Loading colleges...</p>
+              </div>
+            ) : filteredColleges.length === 0 ? (
+              <Card className="glass-hover">
+                <CardContent className="pt-12 pb-12 text-center">
+                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No unverified colleges</h3>
+                  <p className="text-gray-400">All colleges have been verified.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {filteredColleges.map((college: any, idx: number) => (
+                  <motion.div
+                    key={college.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className="glass-hover">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold mb-1">{college.name}</h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                              {college.location && <span>{college.location}</span>}
+                              {college.website && (
+                                <a href={college.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                  {college.website}
+                                </a>
+                              )}
+                              {college.profiles?.full_name && (
+                                <span>Admin: {college.profiles.full_name}</span>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="border-yellow-500 text-yellow-500">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Unverified
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCollege(college);
+                                setViewDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-green-500 text-green-500 hover:bg-green-500/10"
+                              onClick={() => verifyCollegeMutation.mutate(college.id)}
+                              disabled={verifyCollegeMutation.isPending}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Verify
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-4 mt-6">
+            {usersLoading ? (
+              <div className="text-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+                <p className="mt-2 text-gray-400">Loading users...</p>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <Card className="glass-hover">
+                <CardContent className="pt-12 pb-12 text-center">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No pending users</h3>
+                  <p className="text-gray-400">All users have been processed.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {filteredUsers.map((user: any, idx: number) => (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className="glass-hover">
+                      <CardContent className="pt-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold mb-1">{user.full_name}</h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
+                              <span>{user.email}</span>
+                              {user.colleges?.name && <span>• {user.colleges.name}</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mb-4">
+                              {user.user_roles && user.user_roles.length > 0 ? (
+                                user.user_roles.map((ur: any) => (
+                                  <Badge key={ur.role} variant="outline">{ur.role}</Badge>
+                                ))
+                              ) : (
+                                <Badge variant="outline" className="border-yellow-500 text-yellow-500">
+                                  No Role
+                                </Badge>
+                              )}
+                              {user.is_active === false && (
+                                <Badge variant="outline" className="border-red-500 text-red-500">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setViewDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Manage
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* View Details Dialog */}
+        <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            {selectedTab === "jobs" && selectedJob && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedJob.title}</DialogTitle>
+                  <DialogDescription>
+                    {selectedJob.company_name} • {selectedJob.colleges?.name || "No college"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {selectedJob.description && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Description</h4>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedJob.description}</p>
+                    </div>
+                  )}
+                  {selectedJob.requirements && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Requirements</h4>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{selectedJob.requirements}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button
+                      className="flex-1 border-green-500 text-green-500 hover:bg-green-500/10"
+                      onClick={() => updateJobStatusMutation.mutate({ jobId: selectedJob.id, status: "approved" })}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-red-500 text-red-500 hover:bg-red-500/10"
+                      onClick={() => updateJobStatusMutation.mutate({ jobId: selectedJob.id, status: "rejected" })}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedTab === "colleges" && selectedCollege && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedCollege.name}</DialogTitle>
+                  <DialogDescription>College verification details</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Location</h4>
+                    <p className="text-sm text-gray-300">{selectedCollege.location || "Not specified"}</p>
+                  </div>
+                  {selectedCollege.website && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Website</h4>
+                      <a href={selectedCollege.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                        {selectedCollege.website}
+                      </a>
+                    </div>
+                  )}
+                  {selectedCollege.profiles?.full_name && (
+                    <div>
+                      <h4 className="font-semibold mb-2">Admin</h4>
+                      <p className="text-sm text-gray-300">{selectedCollege.profiles.full_name} ({selectedCollege.profiles.email})</p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button
+                      className="flex-1 border-green-500 text-green-500 hover:bg-green-500/10"
+                      onClick={() => verifyCollegeMutation.mutate(selectedCollege.id)}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Verify College
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedTab === "users" && selectedUser && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{selectedUser.full_name}</DialogTitle>
+                  <DialogDescription>User management</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Email</h4>
+                    <p className="text-sm text-gray-300">{selectedUser.email}</p>
+                  </div>
+                  {selectedUser.colleges?.name && (
+                    <div>
+                      <h4 className="font-semibold mb-2">College</h4>
+                      <p className="text-sm text-gray-300">{selectedUser.colleges.name}</p>
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="font-semibold mb-2">Current Roles</h4>
+                    <div className="flex gap-2 mb-4">
+                      {selectedUser.user_roles && selectedUser.user_roles.length > 0 ? (
+                        selectedUser.user_roles.map((ur: any) => (
+                          <Badge key={ur.role} variant="outline">{ur.role}</Badge>
+                        ))
+                      ) : (
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-500">No Role</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold mb-2">Assign Role</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {["student", "alumni", "college", "admin"].map((role) => (
+                        <Button
+                          key={role}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => assignRoleMutation.mutate({ userId: selectedUser.user_id, role })}
+                          disabled={selectedUser.user_roles?.some((ur: any) => ur.role === role)}
+                        >
+                          Assign {role}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  {selectedUser.is_active === false && (
+                    <div className="flex gap-2 pt-4 border-t">
+                      <Button
+                        className="flex-1 border-green-500 text-green-500 hover:bg-green-500/10"
+                        onClick={() => activateUserMutation.mutate(selectedUser.user_id)}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Activate User
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </DashboardLayout>
+  );
+}
+

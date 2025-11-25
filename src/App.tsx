@@ -43,6 +43,7 @@ import JobApprovals from "./pages/college/Approvals";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
+import AdminApprovals from "./pages/admin/Approvals";
 import AdminColleges from "./pages/admin/Colleges";
 import AdminJobs from "./pages/admin/Jobs";
 import AdminUsers from "./pages/admin/Users";
@@ -95,6 +96,7 @@ const App = () => (
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/approvals" element={<ProtectedRoute allowedRoles={["admin"]}><AdminApprovals /></ProtectedRoute>} />
           <Route path="/admin/colleges" element={<ProtectedRoute allowedRoles={["admin"]}><AdminColleges /></ProtectedRoute>} />
           <Route path="/admin/jobs" element={<ProtectedRoute allowedRoles={["admin"]}><AdminJobs /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute allowedRoles={["admin"]}><AdminUsers /></ProtectedRoute>} />
