@@ -20,16 +20,13 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-20 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/" className="flex items-center group">
             <motion.img
               src="https://iili.io/fqdZCfn.png"
               alt="Alignr Logo"
-              className="h-12 w-auto transition-transform group-hover:scale-105"
+              className="h-14 w-auto transition-transform group-hover:scale-105"
               whileHover={{ scale: 1.05 }}
             />
-            <span className="text-2xl font-bold bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
-              Alignr
-            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -40,18 +37,28 @@ export function Header() {
             >
               Home
             </Link>
-            <Link
-              to="#features"
-              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
+            <a
+              href="#features"
+              onClick={(e) => {
+                e.preventDefault();
+                const element = document.getElementById('features');
+                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
             >
               Features
-            </Link>
-            <Link
-              to="#testimonials"
-              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
+            </a>
+            <a
+              href="#testimonials"
+              onClick={(e) => {
+                e.preventDefault();
+                const element = document.getElementById('testimonials');
+                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
             >
               Testimonials
-            </Link>
+            </a>
             {!user ? (
               <div className="flex items-center gap-4">
                 <Link to="/auth">
@@ -111,20 +118,30 @@ export function Header() {
             >
               Home
             </Link>
-            <Link
-              to="#features"
-              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
+            <a
+              href="#features"
+              onClick={(e) => {
+                e.preventDefault();
+                setMobileMenuOpen(false);
+                const element = document.getElementById('features');
+                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
             >
               Features
-            </Link>
-            <Link
-              to="#testimonials"
-              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
+            </a>
+            <a
+              href="#testimonials"
+              onClick={(e) => {
+                e.preventDefault();
+                setMobileMenuOpen(false);
+                const element = document.getElementById('testimonials');
+                element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="block text-sm font-medium text-gray-300 hover:text-[#CAFF00] transition-colors cursor-pointer"
             >
               Testimonials
-            </Link>
+            </a>
             {!user ? (
               <div className="flex flex-col gap-2 pt-4">
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>

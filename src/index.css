@@ -17,18 +17,19 @@
     --popover: 222 47% 11%;
     --popover-foreground: 213 31% 91%;
     
-    /* Neon accent colors - matching logo theme */
-    --primary: 239 84% 67%; /* #6366F1 - Deep purple/blue */
+    /* Neon accent colors - matching logo theme (blue and green) */
+    --primary: 220 100% 50%; /* #0066FF - Blue from logo */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 188 94% 43%; /* #06B6D4 - Electric cyan */
+    --secondary: 188 94% 43%; /* #06B6D4 - Electric cyan/blue */
     --secondary-foreground: 0 0% 100%;
     
-    --accent: 60 100% 50%; /* #CAFF00 - Neon green/yellow from logo */
+    --accent: 60 100% 50%; /* #CAFF00 - Neon green from logo */
     --accent-foreground: 0 0% 0%;
     
     --neon-green: 60 100% 50%; /* #CAFF00 - Bright neon green */
-    --logo-blue: 220 100% 25%; /* Dark blue from logo */
+    --logo-blue: 220 100% 40%; /* Blue from logo */
+    --logo-dark-blue: 220 100% 25%; /* Dark blue from logo */
     
     --muted: 223 47% 20%;
     --muted-foreground: 213 31% 70%;
@@ -110,21 +111,25 @@
     box-shadow: 0 0 20px rgba(244, 114, 182, 0.3);
   }
   
-  /* Gradient backgrounds */
+  /* Gradient backgrounds - blue and green theme */
   .gradient-primary {
-    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+    background: linear-gradient(135deg, #0066FF 0%, #06B6D4 100%);
   }
   
   .gradient-secondary {
-    background: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%);
+    background: linear-gradient(135deg, #06B6D4 0%, #0066FF 100%);
   }
   
   .gradient-accent {
-    background: linear-gradient(135deg, #CAFF00 0%, #FFFF00 100%);
+    background: linear-gradient(135deg, #CAFF00 0%, #00FF88 100%);
   }
   
   .gradient-logo {
-    background: linear-gradient(135deg, #1E3A8A 0%, #6366F1 50%, #CAFF00 100%);
+    background: linear-gradient(135deg, #1E3A8A 0%, #0066FF 50%, #CAFF00 100%);
+  }
+  
+  .gradient-blue-green {
+    background: linear-gradient(135deg, #0066FF 0%, #CAFF00 100%);
   }
   
   /* Neon green glow */

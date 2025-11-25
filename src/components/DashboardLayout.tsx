@@ -26,15 +26,12 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0F172A]/80 backdrop-blur-md">
         <div className="container mx-auto px-4 flex h-20 items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-3 group">
+            <Link to="/" className="flex items-center group">
               <img
                 src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
-                className="h-10 w-auto transition-transform group-hover:scale-105"
+                className="h-12 w-auto transition-transform group-hover:scale-105"
               />
-              <span className="text-xl font-bold bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
-                Alignr
-              </span>
             </Link>
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (

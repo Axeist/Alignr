@@ -121,15 +121,9 @@ const Index = () => {
                 <img
                   src="https://iili.io/fqdZCfn.png"
                   alt="Alignr Logo"
-                  className="h-24 md:h-32 w-auto"
+                  className="h-32 md:h-48 lg:h-56 w-auto"
                 />
               </motion.div>
-
-              <h1 className="text-5xl md:text-7xl font-bold font-poppins">
-                <span className="bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
-                  Alignr
-                </span>
-              </h1>
               <p className="text-2xl md:text-4xl text-gray-300 font-light">
                 AI-Powered Career Development & Placement Ecosystem
               </p>
@@ -156,7 +150,7 @@ const Index = () => {
                       </Button>
                     </Link>
                     <Link to="/auth">
-                      <Button size="lg" variant="outline" className="glass border-cyan-500/50 text-cyan-400 px-8 py-6 text-lg hover:bg-cyan-500/10 hover:border-cyan-500">
+                      <Button size="lg" variant="outline" className="glass border-[#0066FF]/50 text-[#0066FF] px-8 py-6 text-lg hover:bg-[#0066FF]/10 hover:border-[#0066FF]">
                         For Colleges
                       </Button>
                     </Link>
@@ -168,7 +162,7 @@ const Index = () => {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-20 px-4 relative">
+        <section id="features" className="py-20 px-4 relative scroll-mt-20">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#CAFF00]/5 to-transparent" />
           <div className="container mx-auto relative z-10">
             <motion.div
@@ -179,7 +173,7 @@ const Index = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl md:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-[#CAFF00] to-[#FFFF00] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
                   Powerful Features
                 </span>
               </h2>
@@ -198,7 +192,7 @@ const Index = () => {
                 >
                   <Card className={`glass-hover h-full border-[#CAFF00]/20 hover:border-[#CAFF00]/40 transition-all ${feature.gradient} bg-gradient-to-br`}>
                     <CardHeader>
-                      <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-[#CAFF00]/20 to-[#FFFF00]/20 flex items-center justify-center mb-4">
+                      <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-[#0066FF]/20 via-[#06B6D4]/20 to-[#CAFF00]/20 flex items-center justify-center mb-4">
                         <feature.icon className="h-7 w-7 text-[#CAFF00]" />
                       </div>
                       <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
@@ -241,7 +235,7 @@ const Index = () => {
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" className="py-20 px-4">
+        <section id="testimonials" className="py-20 px-4 scroll-mt-20">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0 }}
@@ -251,7 +245,7 @@ const Index = () => {
               className="text-center mb-16"
             >
               <h2 className="text-4xl md:text-6xl font-bold mb-4">
-                <span className="bg-gradient-to-r from-[#CAFF00] to-[#FFFF00] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
                   What People Say
                 </span>
               </h2>
@@ -304,7 +298,7 @@ const Index = () => {
               <div className="relative z-10">
                 <Zap className="h-16 w-16 text-[#CAFF00] mx-auto mb-6" />
                 <h2 className="text-4xl md:text-6xl font-bold mb-6">
-                  <span className="bg-gradient-to-r from-[#CAFF00] to-[#FFFF00] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-[#0066FF] via-[#06B6D4] to-[#CAFF00] bg-clip-text text-transparent">
                     Ready to Transform Your Career?
                   </span>
                 </h2>

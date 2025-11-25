@@ -8,15 +8,12 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center">
               <img
                 src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
-                className="h-10 w-auto"
+                className="h-12 w-auto"
               />
-              <span className="text-xl font-bold bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
-                Alignr
-              </span>
             </div>
             <p className="text-sm text-gray-400">
               AI-powered career development and placement ecosystem connecting students, colleges, and employers.
@@ -136,14 +133,8 @@ export function Footer() {
               © {new Date().getFullYear()} Alignr. All rights reserved.
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
-              <Link to="/terms" className="hover:text-[#CAFF00] transition-colors">
-                Terms of Service
-              </Link>
-              <Link to="/privacy" className="hover:text-[#CAFF00] transition-colors">
-                Privacy Policy
-              </Link>
               <a
-                href="https://cuephoria.tech"
+                href="https://tech.cuephoria.in"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-[#CAFF00] transition-colors group"

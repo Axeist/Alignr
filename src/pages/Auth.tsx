@@ -80,12 +80,9 @@ export default function Auth() {
               <img
                 src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
-                className="h-16 w-auto"
+                className="h-20 w-auto"
               />
             </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
-              Alignr
-            </CardTitle>
             <CardDescription className="text-gray-400">Your AI-powered career ecosystem</CardDescription>
           </CardHeader>
         <CardContent>
