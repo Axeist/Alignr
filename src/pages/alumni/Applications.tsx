@@ -66,7 +66,7 @@ export default function AlumniApplications() {
       if (!user || jobIds.length === 0) return [];
       let query = supabase
         .from("applications")
-        .select("*, jobs(*), profiles(*)")
+        .select("*, jobs(*)")
         .in("job_id", jobIds)
         .order("applied_at", { ascending: false });
 
@@ -75,7 +75,34 @@ export default function AlumniApplications() {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching applications:", error);
+        throw error;
+      }
+      
+      // Fetch profiles separately for each application
+      if (data && data.length > 0) {
+        const studentIds = [...new Set(data.map((app: any) => app.student_id || app.user_id).filter(Boolean))];
+        if (studentIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("user_id, full_name, email, avatar_url")
+            .in("user_id", studentIds);
+          
+          if (profilesError) {
+            console.error("Error fetching profiles:", profilesError);
+            // Continue without profiles rather than failing completely
+          }
+          
+          // Map profiles to applications
+          const profilesMap = new Map(profilesData?.map((p: any) => [p.user_id, p]) || []);
+          return data.map((app: any) => ({
+            ...app,
+            profiles: profilesMap.get(app.student_id || app.user_id) || null,
+          }));
+        }
+      }
+      
       return data || [];
     },
     enabled: !!user && jobIds.length > 0,

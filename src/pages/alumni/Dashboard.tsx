@@ -46,12 +46,20 @@ export default function AlumniDashboard() {
       const jobIds = jobs.map(j => j.id);
       if (jobIds.length === 0) return [];
 
-      const { data, error } = await supabase
-        .from("applications")
-        .select("*, jobs(*)")
-        .in("job_id", jobIds);
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("applications")
+          .select("*, jobs(*)")
+          .in("job_id", jobIds);
+        if (error) {
+          console.error("Error fetching applications:", error);
+          return [];
+        }
+        return data || [];
+      } catch (error) {
+        console.error("Error in applications query:", error);
+        return [];
+      }
     },
     enabled: !!user && !!jobs
   });

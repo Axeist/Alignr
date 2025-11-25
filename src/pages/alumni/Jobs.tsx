@@ -53,15 +53,31 @@ export default function AlumniJobs() {
       // Get application counts for each job
       const jobsWithCounts = await Promise.all(
         (jobsData || []).map(async (job) => {
-          const { count, error: countError } = await supabase
-            .from("applications")
-            .select("*", { count: "exact", head: true })
-            .eq("job_id", job.id);
-          
-          return {
-            ...job,
-            application_count: countError ? 0 : (count || 0),
-          };
+          try {
+            const { count, error: countError } = await supabase
+              .from("applications")
+              .select("*", { count: "exact", head: true })
+              .eq("job_id", job.id);
+            
+            if (countError) {
+              console.error(`Error fetching application count for job ${job.id}:`, countError);
+              return {
+                ...job,
+                application_count: 0,
+              };
+            }
+            
+            return {
+              ...job,
+              application_count: count || 0,
+            };
+          } catch (error) {
+            console.error(`Error processing job ${job.id}:`, error);
+            return {
+              ...job,
+              application_count: 0,
+            };
+          }
         })
       );
       
@@ -112,10 +128,13 @@ export default function AlumniJobs() {
     }
   };
 
-  const filteredJobs = jobs?.filter((job: any) =>
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company_name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredJobs = jobs?.filter((job: any) => {
+    if (!job) return false;
+    const title = job.title?.toLowerCase() || "";
+    const company = job.company_name?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    return title.includes(query) || company.includes(query);
+  }) || [];
 
   const stats = {
     total: jobs?.length || 0,
