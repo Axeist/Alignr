@@ -80,26 +80,36 @@ export function useAuth() {
       if (error) throw error;
 
       if (data.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: data.user.id,
-            full_name: fullName,
-            email: email,
-          });
+        // Use the database function to create profile and role (bypasses RLS issues)
+        const { error: functionError } = await supabase.rpc('create_user_profile', {
+          p_user_id: data.user.id,
+          p_full_name: fullName,
+          p_email: email,
+          p_role: role
+        });
 
-        if (profileError) throw profileError;
+        if (functionError) {
+          // Fallback to direct inserts if function doesn't exist
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .insert({
+              user_id: data.user.id,
+              full_name: fullName,
+              email: email,
+              role: role,
+            });
 
-        // Create role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: data.user.id,
-            role: role,
-          });
+          if (profileError) throw profileError;
 
-        if (roleError) throw roleError;
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({
+              user_id: data.user.id,
+              role: role,
+            });
+
+          if (roleError) throw roleError;
+        }
 
         toast({
           title: "Success",
