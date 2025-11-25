@@ -403,7 +403,7 @@ export default function StudentDashboard() {
               </Link>
             </CardContent>
           </Card>
-
+          
           {/* Recent Applications */}
           <Card className="glass-hover">
             <CardHeader>
