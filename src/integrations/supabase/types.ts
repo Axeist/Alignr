@@ -14,16 +14,322 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          applied_at: string
+          cover_letter: string | null
+          id: string
+          job_id: string
+          resume_url: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          cover_letter?: string | null
+          id?: string
+          job_id: string
+          resume_url?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          cover_letter?: string | null
+          id?: string
+          job_id?: string
+          resume_url?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      colleges: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          college_id: string | null
+          created_at: string
+          description: string | null
+          event_date: string
+          id: string
+          location: string | null
+          organizer_id: string
+          title: string
+        }
+        Insert: {
+          college_id?: string | null
+          created_at?: string
+          description?: string | null
+          event_date: string
+          id?: string
+          location?: string | null
+          organizer_id: string
+          title: string
+        }
+        Update: {
+          college_id?: string | null
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          id?: string
+          location?: string | null
+          organizer_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          college_id: string | null
+          company_name: string
+          created_at: string
+          description: string | null
+          experience_level: string | null
+          id: string
+          job_type: string | null
+          location: string | null
+          posted_by: string
+          requirements: string | null
+          salary_range: string | null
+          status: Database["public"]["Enums"]["job_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          college_id?: string | null
+          company_name: string
+          created_at?: string
+          description?: string | null
+          experience_level?: string | null
+          id?: string
+          job_type?: string | null
+          location?: string | null
+          posted_by: string
+          requirements?: string | null
+          salary_range?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          college_id?: string | null
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          experience_level?: string | null
+          id?: string
+          job_type?: string | null
+          location?: string | null
+          posted_by?: string
+          requirements?: string | null
+          salary_range?: string | null
+          status?: Database["public"]["Enums"]["job_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      placement_drives: {
+        Row: {
+          college_id: string
+          company_name: string
+          created_at: string
+          description: string | null
+          drive_date: string
+          id: string
+          title: string
+        }
+        Insert: {
+          college_id: string
+          company_name: string
+          created_at?: string
+          description?: string | null
+          drive_date: string
+          id?: string
+          title: string
+        }
+        Update: {
+          college_id?: string
+          company_name?: string
+          created_at?: string
+          description?: string | null
+          drive_date?: string
+          id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_drives_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          full_name: string
+          github_url: string | null
+          id: string
+          linkedin_url: string | null
+          phone: string | null
+          portfolio_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      skills: {
+        Row: {
+          created_at: string
+          id: string
+          proficiency: string | null
+          skill_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          proficiency?: string | null
+          skill_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          proficiency?: string | null
+          skill_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "student" | "alumni" | "college" | "admin"
+      application_status: "pending" | "shortlisted" | "rejected" | "accepted"
+      job_status: "pending" | "approved" | "rejected" | "active" | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +456,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["student", "alumni", "college", "admin"],
+      application_status: ["pending", "shortlisted", "rejected", "accepted"],
+      job_status: ["pending", "approved", "rejected", "active", "closed"],
+    },
   },
 } as const
