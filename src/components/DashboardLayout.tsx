@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { 
   LogOut, 
   Menu, 
-  X, 
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard, 
   User, 
   FileText, 
@@ -79,38 +80,51 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar - Fixed */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-[#0F172A] border-r border-white/10 transition-all duration-300",
+          "hidden lg:flex flex-col bg-[#0F172A] border-r border-white/10 fixed left-0 top-0 h-screen z-50 transition-all duration-300",
           sidebarOpen ? "w-72" : "w-20"
         )}
       >
-        {/* Logo Section */}
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center group flex-shrink-0">
-              <motion.img
-                src="https://iili.io/fqdZCfn.png"
-                alt="Alignr Logo"
-                className={cn(
-                  "transition-all duration-300",
-                  sidebarOpen ? "h-16 w-auto" : "h-12 w-auto mx-auto"
-                )}
-                whileHover={{ scale: 1.05 }}
-              />
-            </Link>
-            {sidebarOpen && (
-              <motion.h2
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-xl font-bold text-white"
-              >
-                Alignr
-              </motion.h2>
-            )}
-          </div>
+        {/* Logo Section with Collapse Button at Top */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <Link to="/" className="flex items-center group flex-shrink-0">
+            <motion.img
+              src="https://iili.io/fqdZCfn.png"
+              alt="Alignr Logo"
+              className={cn(
+                "transition-all duration-300",
+                sidebarOpen ? "h-12 w-auto" : "h-10 w-auto"
+              )}
+              whileHover={{ scale: 1.05 }}
+            />
+          </Link>
+          {sidebarOpen && (
+            <Button
+              onClick={() => setSidebarOpen(false)}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
         </div>
+
+        {/* Collapse Button When Sidebar is Collapsed */}
+        {!sidebarOpen && (
+          <div className="p-2 border-b border-white/10">
+            <Button
+              onClick={() => setSidebarOpen(true)}
+              variant="ghost"
+              size="icon"
+              className="w-full text-gray-400 hover:text-white hover:bg-white/10"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
@@ -185,20 +199,6 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
             <LogOut className="h-5 w-5 flex-shrink-0" />
             {sidebarOpen && <span className="text-sm">Logout</span>}
           </Button>
-
-          {/* Toggle Sidebar Button */}
-          <Button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            variant="ghost"
-            size="icon"
-            className="w-full text-gray-400 hover:text-white hover:bg-white/10"
-          >
-            {sidebarOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
         </div>
       </aside>
 
@@ -211,9 +211,8 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
               <img
                 src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
-                className="h-16 w-auto"
+                className="h-12 w-auto"
               />
-              <h2 className="text-xl font-bold text-white">Alignr</h2>
             </Link>
           </div>
 
@@ -269,8 +268,11 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area - With margin for fixed sidebar */}
+      <div className={cn(
+        "flex-1 flex flex-col min-w-0 transition-all duration-300",
+        sidebarOpen ? "lg:ml-72" : "lg:ml-20"
+      )}>
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-40 border-b border-white/10 bg-[#0F172A]/95 backdrop-blur-md">
           <div className="flex h-16 items-center justify-between px-4">

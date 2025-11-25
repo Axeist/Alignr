@@ -22,10 +22,12 @@ export default function Events() {
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
     { label: "Profile", href: "/student/profile" },
-    { label: "Resume Builder", href: "/student/resume" },
+    { label: "Resume", href: "/student/resume" },
+    { label: "LinkedIn", href: "/student/linkedin" },
     { label: "Job Board", href: "/student/jobs" },
     { label: "My Applications", href: "/student/applications" },
     { label: "Skill Path", href: "/student/skills" },
+    { label: "Career Report", href: "/student/career-report" },
     { label: "Events", href: "/student/events" },
     { label: "Leaderboard", href: "/student/leaderboard" },
   ];
