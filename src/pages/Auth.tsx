@@ -23,6 +23,65 @@ interface PasswordValidation {
   hasSpecialChar: boolean;
 }
 
+const PasswordInput = ({ 
+  id, 
+  value, 
+  onChange, 
+  showPassword, 
+  onToggle,
+  placeholder = "Enter password",
+  className
+}: {
+  id: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  showPassword: boolean;
+  onToggle: () => void;
+  placeholder?: string;
+  className?: string;
+}) => {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={showPassword ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        required
+        className={cn("border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF] pr-10", className)}
+      />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
+        aria-label={showPassword ? "Hide password" : "Show password"}
+      >
+        {showPassword ? (
+          <EyeOff className="h-4 w-4" />
+        ) : (
+          <Eye className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
+};
+
+const ValidationItem = ({ isValid, text }: { isValid: boolean; text: string }) => (
+  <div className={cn("flex items-center gap-2 text-sm transition-colors", isValid ? "text-green-600" : "text-gray-500")}>
+    {isValid ? (
+      <CheckCircle2 className="h-4 w-4 text-green-600" />
+    ) : (
+      <XCircle className="h-4 w-4 text-gray-400" />
+    )}
+    <span>{text}</span>
+  </div>
+);
+
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, signInWithOAuth, user, userRole, getDashboardPath, fetchUserRole } = useAuth();
@@ -129,61 +188,6 @@ export default function Auth() {
       }
     }
   };
-
-  const PasswordInput = ({ 
-    id, 
-    value, 
-    onChange, 
-    showPassword, 
-    onToggle,
-    placeholder = "Enter password",
-    className
-  }: {
-    id: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    showPassword: boolean;
-    onToggle: () => void;
-    placeholder?: string;
-    className?: string;
-  }) => {
-    return (
-      <div className="relative">
-        <Input
-          id={id}
-          type={showPassword ? "text" : "password"}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          required
-          className={cn("border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF] pr-10", className)}
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
-          aria-label={showPassword ? "Hide password" : "Show password"}
-        >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
-        </button>
-      </div>
-    );
-  };
-
-  const ValidationItem = ({ isValid, text }: { isValid: boolean; text: string }) => (
-    <div className={cn("flex items-center gap-2 text-sm transition-colors", isValid ? "text-green-600" : "text-gray-500")}>
-      {isValid ? (
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-      ) : (
-        <XCircle className="h-4 w-4 text-gray-400" />
-      )}
-      <span>{text}</span>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

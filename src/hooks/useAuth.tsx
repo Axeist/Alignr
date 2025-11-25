@@ -90,25 +90,25 @@ export function useAuth() {
 
         if (functionError) {
           // Fallback to direct inserts if function doesn't exist
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .insert({
-              user_id: data.user.id,
-              full_name: fullName,
-              email: email,
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            user_id: data.user.id,
+            full_name: fullName,
+            email: email,
               role: role,
-            });
+          });
 
-          if (profileError) throw profileError;
+        if (profileError) throw profileError;
 
-          const { error: roleError } = await supabase
-            .from("user_roles")
-            .insert({
-              user_id: data.user.id,
-              role: role,
-            });
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({
+            user_id: data.user.id,
+            role: role,
+          });
 
-          if (roleError) throw roleError;
+        if (roleError) throw roleError;
         }
 
         toast({
