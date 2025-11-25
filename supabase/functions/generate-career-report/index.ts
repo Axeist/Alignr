@@ -415,19 +415,19 @@ function generateHTMLReport(userData: any, reportData: any): string {
           <div class="action-period">
             <h3>30 Days</h3>
             <ul>
-              ${(reportData.action_plan?.30_days || []).map((action: string) => `<li>${action}</li>`).join("")}
+              ${(reportData.action_plan?.["30_days"] || []).map((action: string) => `<li>${action}</li>`).join("")}
             </ul>
           </div>
           <div class="action-period">
             <h3>60 Days</h3>
             <ul>
-              ${(reportData.action_plan?.60_days || []).map((action: string) => `<li>${action}</li>`).join("")}
+              ${(reportData.action_plan?.["60_days"] || []).map((action: string) => `<li>${action}</li>`).join("")}
             </ul>
           </div>
           <div class="action-period">
             <h3>90 Days</h3>
             <ul>
-              ${(reportData.action_plan?.90_days || []).map((action: string) => `<li>${action}</li>`).join("")}
+              ${(reportData.action_plan?.["90_days"] || []).map((action: string) => `<li>${action}</li>`).join("")}
             </ul>
           </div>
         </div>
