@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Link } from "react-router-dom";
 import { Github, Linkedin, Chrome, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface PasswordValidation {
@@ -39,6 +41,7 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("student");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Password validation
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
@@ -363,11 +366,48 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Terms and Conditions Checkbox */}
+                <div className="flex items-start gap-3 pt-2">
+                  <Checkbox
+                    id="terms-checkbox"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    className="mt-0.5 border-gray-300 data-[state=checked]:bg-[#0066FF] data-[state=checked]:border-[#0066FF]"
+                  />
+                  <Label
+                    htmlFor="terms-checkbox"
+                    className="text-sm text-gray-700 leading-relaxed cursor-pointer font-normal"
+                  >
+                    I agree to the{" "}
+                    <Link
+                      to="/terms"
+                      className="text-[#0066FF] hover:underline font-semibold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Terms of Service
+                    </Link>
+                    {" "}and{" "}
+                    <Link
+                      to="/privacy"
+                      className="text-[#0066FF] hover:underline font-semibold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Privacy Policy
+                    </Link>
+                  </Label>
+                </div>
                 
                 <Button 
                   type="submit" 
                   className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled={loading || !isPasswordValid || !passwordsMatch}
+                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms}
                 >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
