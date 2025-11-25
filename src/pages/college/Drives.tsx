@@ -54,6 +54,7 @@ export default function PlacementDrives() {
     { label: "Events", href: "/college/events" },
     { label: "Analytics", href: "/college/analytics" },
     { label: "Job Approvals", href: "/college/approvals" },
+    { label: "Profile", href: "/college/profile" },
   ];
 
   // Fetch college data

@@ -10,7 +10,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, Save, Lock, LockIcon } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, Lock, LockIcon, Building2, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { colleges, searchColleges } from "@/lib/colleges";
 
 export default function CollegeProfile() {
   const { user } = useAuth();
@@ -49,21 +52,50 @@ export default function CollegeProfile() {
     enabled: !!user,
   });
 
+  // Fetch all colleges from database
+  const { data: dbColleges } = useQuery({
+    queryKey: ["db-colleges"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("colleges")
+        .select("id, name, location")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Profile update mutation
   const updateProfileMutation = useMutation({
     mutationFn: async (updates: any) => {
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase
+      
+      // Separate college update from other updates
+      const { college_id, ...otherUpdates } = updates;
+      
+      // Update basic profile fields
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          ...updates,
+          ...otherUpdates,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
-      if (error) throw error;
+      if (profileError) throw profileError;
+      
+      // Handle college update separately if changed
+      if (college_id && college_id !== profile?.college_id) {
+        const { error: collegeError } = await supabase.rpc("update_profile_college", {
+          p_user_id: user.id,
+          p_college_id: college_id,
+          p_role: "college",
+        });
+        if (collegeError) throw collegeError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["db-colleges"] });
       toast({
         title: "Success",
         description: "Profile updated successfully!",
@@ -78,6 +110,66 @@ export default function CollegeProfile() {
       });
     },
   });
+
+  // College creation/selection mutation
+  const handleCollegeSelection = async (collegeName: string, location?: string) => {
+    if (!user) return;
+    
+    try {
+      // First try to find existing college
+      const { data: existingCollege } = await supabase
+        .from("colleges")
+        .select("id")
+        .ilike("name", collegeName)
+        .single();
+      
+      let collegeId: string;
+      
+      if (existingCollege) {
+        collegeId = existingCollege.id;
+      } else {
+        // Create new college
+        const { data: newCollege, error: createError } = await supabase
+          .from("colleges")
+          .insert({
+            name: collegeName,
+            location: location || "",
+          })
+          .select("id")
+          .single();
+        
+        if (createError) throw createError;
+        collegeId = newCollege.id;
+      }
+      
+      // Update profile with college
+      const { error: updateError } = await supabase.rpc("update_profile_college", {
+        p_user_id: user.id,
+        p_college_id: collegeId,
+        p_role: "college",
+      });
+      
+      if (updateError) throw updateError;
+      
+      setSelectedCollegeId(collegeId);
+      setFormData({ ...formData, college_id: collegeId });
+      
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["db-colleges"] });
+      
+      toast({
+        title: "Success",
+        description: "College updated successfully!",
+        variant: "success",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update college",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Password change mutation
   const changePasswordMutation = useMutation({
@@ -147,7 +239,11 @@ export default function CollegeProfile() {
     phone: "",
     bio: "",
     linkedin_url: "",
+    college_id: "",
   });
+  
+  const [collegeSearchQuery, setCollegeSearchQuery] = useState("");
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string>("");
 
   useEffect(() => {
     if (profile) {
@@ -157,7 +253,9 @@ export default function CollegeProfile() {
         phone: profile.phone || "",
         bio: profile.bio || "",
         linkedin_url: profile.linkedin_url || "",
+        college_id: profile.college_id || "",
       });
+      setSelectedCollegeId(profile.college_id || "");
     }
   }, [profile]);
 
@@ -273,43 +371,173 @@ export default function CollegeProfile() {
             </Card>
           </TabsContent>
 
-          {/* College Tab - Locked */}
+          {/* College Tab */}
           <TabsContent value="college" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <LockIcon className="h-5 w-5" />
+                  <Building2 className="h-5 w-5" />
                   College Information
                 </CardTitle>
-                <CardDescription>Your college cannot be changed after signup. Only one user can represent each college.</CardDescription>
+                <CardDescription>
+                  {profile?.college_changed_count && profile.college_changed_count > 0
+                    ? "College can only be changed once. Contact admin for further changes. Only one profile can represent each college."
+                    : "Select or add your college. You can change it once. Only one profile can represent each college."}
+                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {profile?.colleges ? (
-                  <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-                    <div className="flex items-center gap-2">
-                      <LockIcon className="h-4 w-4 text-gray-500" />
-                      <h4 className="font-semibold">College (Locked)</h4>
+                  <>
+                    <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-gray-500" />
+                        <h4 className="font-semibold">Current College</h4>
+                      </div>
+                      <p className="text-lg">{profile.colleges.name}</p>
+                      {profile.colleges.location && (
+                        <p className="text-sm text-gray-500">{profile.colleges.location}</p>
+                      )}
+                      {profile.colleges.website && (
+                        <p className="text-sm text-blue-600">
+                          <a href={profile.colleges.website} target="_blank" rel="noopener noreferrer">
+                            {profile.colleges.website}
+                          </a>
+                        </p>
+                      )}
+                      {profile.college_changed_count && profile.college_changed_count > 0 && (
+                        <Alert className="mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            College has been changed {profile.college_changed_count} time(s). 
+                            Further changes require admin approval.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      <Alert className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          As the college representative, you are the only user authorized for this college.
+                        </AlertDescription>
+                      </Alert>
                     </div>
-                    <p className="text-lg">{profile.colleges.name}</p>
-                    {profile.colleges.location && (
-                      <p className="text-sm text-gray-500">{profile.colleges.location}</p>
+                    
+                    {(!profile.college_changed_count || profile.college_changed_count === 0) && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Change College</Label>
+                          <Input
+                            placeholder="Search for college..."
+                            value={collegeSearchQuery}
+                            onChange={(e) => setCollegeSearchQuery(e.target.value)}
+                          />
+                          {collegeSearchQuery && (
+                            <div className="border rounded-lg max-h-60 overflow-y-auto">
+                              {searchColleges(collegeSearchQuery).slice(0, 10).map((college) => (
+                                <div
+                                  key={college.id}
+                                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                                  onClick={() => {
+                                    handleCollegeSelection(college.name, college.location);
+                                    setCollegeSearchQuery("");
+                                  }}
+                                >
+                                  <p className="font-medium">{college.name}</p>
+                                  <p className="text-sm text-gray-500">{college.location}, {college.state}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Or select from existing colleges</Label>
+                          <Select
+                            value={selectedCollegeId}
+                            onValueChange={(value) => {
+                              if (value) {
+                                const college = dbColleges?.find(c => c.id === value);
+                                if (college) {
+                                  handleCollegeSelection(college.name, college.location || undefined);
+                                }
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select college" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {dbColleges?.map((college) => (
+                                <SelectItem key={college.id} value={college.id}>
+                                  {college.name} {college.location && `- ${college.location}`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     )}
-                    {profile.colleges.website && (
-                      <p className="text-sm text-blue-600">
-                        <a href={profile.colleges.website} target="_blank" rel="noopener noreferrer">
-                          {profile.colleges.website}
-                        </a>
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-2">
-                      As the college representative, you are the only user authorized for this college. College selection is permanent and cannot be changed. If you need to update this, please contact support.
-                    </p>
-                  </div>
+                  </>
                 ) : (
-                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p className="text-sm text-yellow-800">
-                      No college assigned. Please contact support to set your college.
-                    </p>
+                  <div className="space-y-4">
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        No college assigned. Please select or add your college below. 
+                        Only one profile can represent each college.
+                      </AlertDescription>
+                    </Alert>
+                    
+                    <div className="space-y-2">
+                      <Label>Search and Add College</Label>
+                      <Input
+                        placeholder="Type college name..."
+                        value={collegeSearchQuery}
+                        onChange={(e) => setCollegeSearchQuery(e.target.value)}
+                      />
+                      {collegeSearchQuery && (
+                        <div className="border rounded-lg max-h-60 overflow-y-auto">
+                          {searchColleges(collegeSearchQuery).slice(0, 10).map((college) => (
+                            <div
+                              key={college.id}
+                              className="p-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => {
+                                handleCollegeSelection(college.name, college.location);
+                                setCollegeSearchQuery("");
+                              }}
+                            >
+                              <p className="font-medium">{college.name}</p>
+                              <p className="text-sm text-gray-500">{college.location}, {college.state}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Or select from existing colleges</Label>
+                      <Select
+                        value={selectedCollegeId}
+                        onValueChange={(value) => {
+                          if (value) {
+                            const college = dbColleges?.find(c => c.id === value);
+                            if (college) {
+                              handleCollegeSelection(college.name, college.location || undefined);
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select college" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dbColleges?.map((college) => (
+                            <SelectItem key={college.id} value={college.id}>
+                              {college.name} {college.location && `- ${college.location}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
               </CardContent>

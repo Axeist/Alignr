@@ -19,6 +19,7 @@ export default function AlumniDashboard() {
     { label: "My Jobs", href: "/alumni/jobs" },
     { label: "Applications", href: "/alumni/applications" },
     { label: "Candidates", href: "/alumni/candidates" },
+    { label: "Profile", href: "/alumni/profile" },
   ];
 
   // Fetch posted jobs

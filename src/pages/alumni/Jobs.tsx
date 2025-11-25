@@ -36,19 +36,36 @@ export default function AlumniJobs() {
     { label: "My Jobs", href: "/alumni/jobs" },
     { label: "Applications", href: "/alumni/applications" },
     { label: "Candidates", href: "/alumni/candidates" },
+    { label: "Profile", href: "/alumni/profile" },
   ];
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ["alumni-jobs", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data: jobsData, error } = await supabase
         .from("jobs")
-        .select("*, colleges(name), applications(count)")
+        .select("*, colleges(name)")
         .eq("posted_by", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      
+      // Get application counts for each job
+      const jobsWithCounts = await Promise.all(
+        (jobsData || []).map(async (job) => {
+          const { count, error: countError } = await supabase
+            .from("applications")
+            .select("*", { count: "exact", head: true })
+            .eq("job_id", job.id);
+          
+          return {
+            ...job,
+            application_count: countError ? 0 : (count || 0),
+          };
+        })
+      );
+      
+      return jobsWithCounts;
     },
     enabled: !!user,
   });
@@ -104,7 +121,7 @@ export default function AlumniJobs() {
     total: jobs?.length || 0,
     active: jobs?.filter((j: any) => j.status === "active" || j.status === "approved").length || 0,
     pending: jobs?.filter((j: any) => j.status === "pending").length || 0,
-    totalApplications: jobs?.reduce((sum: number, job: any) => sum + (job.applications?.[0]?.count || 0), 0) || 0,
+    totalApplications: jobs?.reduce((sum: number, job: any) => sum + (job.application_count || 0), 0) || 0,
   };
 
   return (
@@ -271,9 +288,9 @@ export default function AlumniJobs() {
                           <Calendar className="h-4 w-4" />
                           Posted {new Date(job.created_at).toLocaleDateString()}
                         </div>
-                        {job.applications?.[0]?.count > 0 && (
+                        {job.application_count > 0 && (
                           <Badge variant="outline">
-                            {job.applications[0].count} applications
+                            {job.application_count} applications
                           </Badge>
                         )}
                       </div>

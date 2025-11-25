@@ -34,21 +34,33 @@ export default function Candidates() {
     { label: "My Jobs", href: "/alumni/jobs" },
     { label: "Applications", href: "/alumni/applications" },
     { label: "Candidates", href: "/alumni/candidates" },
+    { label: "Profile", href: "/alumni/profile" },
   ];
 
   // Fetch student profiles
   const { data: candidates, isLoading } = useQuery({
     queryKey: ["candidates", searchQuery, departmentFilter, yearFilter],
     queryFn: async () => {
+      // First get all student user IDs
+      const { data: studentRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "student");
+      
+      if (rolesError) throw rolesError;
+      if (!studentRoles || studentRoles.length === 0) return [];
+      
+      const studentIds = studentRoles.map(r => r.user_id);
+      
+      // Now get profiles for these students
       let query = supabase
         .from("profiles")
         .select(`
           *,
-          user_roles!inner(role),
-          colleges(name),
-          skills(skill_name, proficiency)
+          colleges(name)
         `)
-        .eq("user_roles.role", "student")
+        .in("user_id", studentIds)
+        .eq("role", "student")
         .order("career_score", { ascending: false, nullsFirst: false });
 
       if (searchQuery) {
@@ -63,9 +75,25 @@ export default function Candidates() {
         query = query.eq("year", parseInt(yearFilter));
       }
 
-      const { data, error } = await query;
+      const { data: profiles, error } = await query;
       if (error) throw error;
-      return data || [];
+      
+      // Fetch skills for each profile
+      const profilesWithSkills = await Promise.all(
+        (profiles || []).map(async (profile) => {
+          const { data: skillsData } = await supabase
+            .from("skills")
+            .select("skill_name, proficiency")
+            .eq("user_id", profile.user_id);
+          
+          return {
+            ...profile,
+            skills: skillsData || [],
+          };
+        })
+      );
+      
+      return profilesWithSkills;
     },
   });
 

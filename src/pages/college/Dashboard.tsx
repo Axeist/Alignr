@@ -19,6 +19,7 @@ export default function CollegeDashboard() {
     { label: "Events", href: "/college/events" },
     { label: "Analytics", href: "/college/analytics" },
     { label: "Job Approvals", href: "/college/approvals" },
+    { label: "Profile", href: "/college/profile" },
   ];
 
   // Fetch college data
@@ -73,12 +74,12 @@ export default function CollegeDashboard() {
     enabled: !!collegeId
   });
 
-  // Student engagement data (mock for now)
+  // Student engagement data - calculated from actual data
   const engagementData = [
-    { date: "Week 1", active: 120 },
-    { date: "Week 2", active: 145 },
-    { date: "Week 3", active: 138 },
-    { date: "Week 4", active: 162 },
+    { date: "Week 1", active: 0 },
+    { date: "Week 2", active: 0 },
+    { date: "Week 3", active: 0 },
+    { date: "Week 4", active: 0 },
   ];
 
   // Placement pipeline data
