@@ -67,6 +67,7 @@ export default function CollegeProfile() {
       toast({
         title: "Success",
         description: "Profile updated successfully!",
+        variant: "success",
       });
     },
     onError: (error: any) => {
@@ -107,6 +108,7 @@ export default function CollegeProfile() {
       toast({
         title: "Success",
         description: "Password changed successfully!",
+        variant: "success",
       });
     },
     onError: (error: any) => {

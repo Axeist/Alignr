@@ -1,11 +1,11 @@
 -- Fix RLS policies to allow college selection for students
 -- Allow authenticated users to insert colleges (since we validate college names from our predefined list)
 
--- Drop existing restrictive policy if it exists
+-- Drop existing policies if they exist (to allow clean recreation)
+DROP POLICY IF EXISTS "Authenticated users can create colleges" ON public.colleges;
 DROP POLICY IF EXISTS "Admins can manage colleges" ON public.colleges;
 
 -- Allow everyone to view colleges (policy should already exist, but ensure it's there)
--- Note: If policy exists, this will fail but that's okay
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -14,7 +14,8 @@ BEGIN
     AND tablename = 'colleges' 
     AND policyname = 'Everyone can view colleges'
   ) THEN
-    EXECUTE 'CREATE POLICY "Everyone can view colleges" ON public.colleges FOR SELECT USING (true)';
+    CREATE POLICY "Everyone can view colleges" ON public.colleges 
+    FOR SELECT USING (true);
   END IF;
 EXCEPTION
   WHEN duplicate_object THEN
@@ -40,7 +41,9 @@ BEGIN
     AND tablename = 'colleges' 
     AND policyname = 'College admins can update own college'
   ) THEN
-    EXECUTE 'CREATE POLICY "College admins can update own college" ON public.colleges FOR UPDATE USING (auth.uid() = admin_id)';
+    CREATE POLICY "College admins can update own college" ON public.colleges 
+    FOR UPDATE 
+    USING (auth.uid() = admin_id);
   END IF;
 EXCEPTION
   WHEN duplicate_object THEN

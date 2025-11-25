@@ -185,6 +185,7 @@ export function useAuth() {
         toast({
           title: "Success",
           description: "Account created successfully!",
+          variant: "success",
         });
       }
 
@@ -216,6 +217,7 @@ export function useAuth() {
       toast({
         title: "Welcome back!",
         description: "Successfully signed in.",
+        variant: "success",
       });
 
       return { data, error: null };
