@@ -277,14 +277,14 @@ export default function PostJob() {
                 <div className="space-y-2">
                   <Label htmlFor="college_id">Target College</Label>
                   <Select 
-                    value={formData.college_id} 
-                    onValueChange={(value) => setFormData({ ...formData, college_id: value })}
+                    value={formData.college_id || "all"} 
+                    onValueChange={(value) => setFormData({ ...formData, college_id: value === "all" ? "" : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select college (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Colleges</SelectItem>
+                      <SelectItem value="all">All Colleges</SelectItem>
                       {colleges?.map((college) => (
                         <SelectItem key={college.id} value={college.id}>
                           {college.name}

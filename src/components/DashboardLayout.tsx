@@ -28,6 +28,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -64,7 +66,7 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
-  const { signOut, user } = useAuth();
+  const { signOut, user, userRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -75,8 +77,40 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
     navigate("/auth");
   };
 
-  // Get user's display name or email
-  const displayName = user?.email?.split("@")[0] || "User";
+  // Fetch user profile to get full name
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Get user's display name
+  const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
+  
+  // Format role for display
+  const getRoleDisplay = (role: string | null): string => {
+    switch (role) {
+      case "student":
+        return "Student";
+      case "alumni":
+        return "Alumni";
+      case "college":
+        return "College Rep";
+      case "admin":
+        return "Admin";
+      default:
+        return "User";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -170,23 +204,37 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-100/50"
+              className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-blue-100/50"
             >
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <UserCircle className="h-6 w-6 text-primary" />
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <UserCircle className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-                <p className="text-xs text-gray-600 truncate">{user?.email}</p>
-              </div>
+              {userRole && (
+                <div className="ml-[52px]">
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    {getRoleDisplay(userRole)}
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
           
           {!sidebarOpen && (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
               <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                 <UserCircle className="h-6 w-6 text-primary" />
               </div>
+              {userRole && (
+                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                  {getRoleDisplay(userRole).charAt(0)}
+                </span>
+              )}
             </div>
           )}
 
@@ -248,14 +296,23 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
           {/* User Section & Logout */}
           <div className="p-4 border-t border-blue-200/50 space-y-3">
             {/* User Info */}
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-100/50">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <UserCircle className="h-6 w-6 text-primary" />
+            <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-blue-100/50">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <UserCircle className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-600 truncate">{user?.email}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-                <p className="text-xs text-gray-600 truncate">{user?.email}</p>
-              </div>
+              {userRole && (
+                <div className="ml-[52px]">
+                  <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    {getRoleDisplay(userRole)}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Logout Button */}
