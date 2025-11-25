@@ -12,13 +12,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Briefcase, MapPin, DollarSign, Calendar, Building2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function PostJob() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editJobId = searchParams.get("edit");
+  const isEditMode = !!editJobId;
 
   const [formData, setFormData] = useState({
     title: "",
@@ -70,6 +73,40 @@ export default function PostJob() {
     },
   });
 
+  // Fetch job data if in edit mode
+  const { data: jobData, isLoading: isLoadingJob } = useQuery({
+    queryKey: ["job", editJobId],
+    queryFn: async () => {
+      if (!editJobId || !user) return null;
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", editJobId)
+        .eq("posted_by", user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!editJobId && !!user,
+  });
+
+  // Populate form when job data is loaded
+  useEffect(() => {
+    if (jobData && isEditMode) {
+      setFormData({
+        title: jobData.title || "",
+        company_name: jobData.company_name || "",
+        description: jobData.description || "",
+        requirements: jobData.requirements || "",
+        location: jobData.location || "",
+        job_type: jobData.job_type || "",
+        experience_level: jobData.experience_level || "",
+        salary_range: jobData.salary_range || "",
+        college_id: jobData.college_id || "",
+      });
+    }
+  }, [jobData, isEditMode]);
+
   // Set default college_id from profile
   useEffect(() => {
     if (profile?.college_id && !formData.college_id) {
@@ -81,39 +118,70 @@ export default function PostJob() {
     mutationFn: async (data: typeof formData) => {
       if (!user) throw new Error("Not authenticated");
 
-      const { data: job, error } = await supabase
-        .from("jobs")
-        .insert({
-          title: data.title,
-          company_name: data.company_name,
-          description: data.description,
-          requirements: data.requirements,
-          location: data.location,
-          job_type: data.job_type,
-          experience_level: data.experience_level,
-          salary_range: data.salary_range,
-          posted_by: user.id,
-          college_id: data.college_id || null,
-          status: "pending", // Needs college approval
-        })
-        .select()
-        .single();
+      if (isEditMode && editJobId) {
+        // Update existing job
+        const { data: job, error } = await supabase
+          .from("jobs")
+          .update({
+            title: data.title,
+            company_name: data.company_name,
+            description: data.description,
+            requirements: data.requirements,
+            location: data.location,
+            job_type: data.job_type,
+            experience_level: data.experience_level,
+            salary_range: data.salary_range,
+            college_id: data.college_id || null,
+            updated_at: new Date().toISOString(),
+            // Reset status to pending if job was edited (may need re-approval)
+            status: "pending",
+          })
+          .eq("id", editJobId)
+          .eq("posted_by", user.id)
+          .select()
+          .single();
 
-      if (error) throw error;
-      return job;
+        if (error) throw error;
+        return job;
+      } else {
+        // Create new job
+        const { data: job, error } = await supabase
+          .from("jobs")
+          .insert({
+            title: data.title,
+            company_name: data.company_name,
+            description: data.description,
+            requirements: data.requirements,
+            location: data.location,
+            job_type: data.job_type,
+            experience_level: data.experience_level,
+            salary_range: data.salary_range,
+            posted_by: user.id,
+            college_id: data.college_id || null,
+            status: "pending", // Needs college approval
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        return job;
+      }
     },
     onSuccess: () => {
       toast({
-        title: "Job posted successfully!",
-        description: "Your job posting is pending approval from the college.",
+        title: isEditMode ? "Job updated successfully!" : "Job posted successfully!",
+        description: isEditMode 
+          ? "Your job posting has been updated and is pending approval."
+          : "Your job posting is pending approval from the college.",
       });
       queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["job", editJobId] });
       navigate("/alumni/jobs");
     },
     onError: (error: any) => {
       toast({
-        title: "Error posting job",
-        description: error.message || "Failed to post job. Please try again.",
+        title: isEditMode ? "Error updating job" : "Error posting job",
+        description: error.message || (isEditMode ? "Failed to update job. Please try again." : "Failed to post job. Please try again."),
         variant: "destructive",
       });
     },
@@ -142,17 +210,29 @@ export default function PostJob() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold mb-2">Post a Job</h1>
-          <p className="text-gray-400">Create a new job posting for students</p>
+          <h1 className="text-4xl font-bold mb-2">{isEditMode ? "Edit Job" : "Post a Job"}</h1>
+          <p className="text-gray-400">
+            {isEditMode ? "Update your job posting details" : "Create a new job posting for students"}
+          </p>
         </motion.div>
 
-        <Card className="glass-hover">
-          <CardHeader>
-            <CardTitle>Job Details</CardTitle>
-            <CardDescription>Fill in the details for your job posting</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        {isLoadingJob ? (
+          <Card className="glass-hover">
+            <CardContent className="pt-12 pb-12 text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-gray-400">Loading job details...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="glass-hover">
+            <CardHeader>
+              <CardTitle>Job Details</CardTitle>
+              <CardDescription>
+                {isEditMode ? "Update the details for your job posting" : "Fill in the details for your job posting"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="title">
@@ -299,17 +379,17 @@ export default function PostJob() {
                 <Button
                   type="submit"
                   className="gradient-primary"
-                  disabled={postJobMutation.isPending}
+                  disabled={postJobMutation.isPending || isLoadingJob}
                 >
                   {postJobMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Posting...
+                      {isEditMode ? "Updating..." : "Posting..."}
                     </>
                   ) : (
                     <>
                       <Briefcase className="h-4 w-4 mr-2" />
-                      Post Job
+                      {isEditMode ? "Update Job" : "Post Job"}
                     </>
                   )}
                 </Button>
@@ -317,6 +397,7 @@ export default function PostJob() {
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/alumni/jobs")}
+                  disabled={postJobMutation.isPending || isLoadingJob}
                 >
                   Cancel
                 </Button>
@@ -324,6 +405,7 @@ export default function PostJob() {
             </form>
           </CardContent>
         </Card>
+        )}
       </div>
     </DashboardLayout>
   );

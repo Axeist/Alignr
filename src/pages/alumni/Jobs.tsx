@@ -280,6 +280,12 @@ export default function AlumniJobs() {
                             View Applications
                           </Button>
                         </Link>
+                        <Link to={`/alumni/post-job?edit=${job.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="sm"
