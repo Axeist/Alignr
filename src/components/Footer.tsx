@@ -2,6 +2,10 @@ import { Link } from "react-router-dom";
 import { Github, Linkedin, Mail, ExternalLink } from "lucide-react";
 
 export function Footer() {
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <footer className="border-t border-gray-200 bg-white">
       <div className="container mx-auto px-4 py-12">
@@ -133,13 +137,25 @@ export function Footer() {
               © {new Date().getFullYear()} Alignr. All rights reserved.
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-600">
-              <Link to="/terms" className="hover:text-[#0066FF] transition-colors">
+              <Link 
+                to="/terms" 
+                onClick={scrollToTop}
+                className="hover:text-[#0066FF] transition-colors"
+              >
                 Terms of Service
               </Link>
-              <Link to="/privacy" className="hover:text-[#0066FF] transition-colors">
+              <Link 
+                to="/privacy" 
+                onClick={scrollToTop}
+                className="hover:text-[#0066FF] transition-colors"
+              >
                 Privacy Policy
               </Link>
-              <Link to="/contact" className="hover:text-[#0066FF] transition-colors">
+              <Link 
+                to="/contact" 
+                onClick={scrollToTop}
+                className="hover:text-[#0066FF] transition-colors"
+              >
                 Contact
               </Link>
               <a
