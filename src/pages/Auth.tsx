@@ -71,31 +71,31 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       <Header />
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-white/20 bg-[#0F172A]/80 backdrop-blur-md glass">
+      <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-white via-blue-50/30 to-green-50/30">
+        <Card className="w-full max-w-md border border-gray-200 bg-white shadow-xl">
           <CardHeader className="space-y-4 text-center">
             <div className="flex justify-center">
               <img
                 src="https://iili.io/fqdZCfn.png"
                 alt="Alignr Logo"
-                className="h-20 w-auto"
+                className="h-32 md:h-40 w-auto"
               />
             </div>
-            <CardDescription className="text-gray-400">Your AI-powered career ecosystem</CardDescription>
+            <CardDescription className="text-gray-600 text-base">Your AI-powered career ecosystem</CardDescription>
           </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-gray-100">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-white">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="data-[state=active]:bg-white">Sign Up</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
+            <TabsContent value="signin" className="space-y-4 mt-6">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-email" className="text-gray-900">Email</Label>
                   <Input
                     id="signin-email"
                     type="email"
@@ -103,27 +103,27 @@ export default function Auth() {
                     value={signInEmail}
                     onChange={(e) => setSignInEmail(e.target.value)}
                     required
-                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
+                    className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="signin-password" className="text-gray-900">Password</Label>
                   <Input
                     id="signin-password"
                     type="password"
                     value={signInPassword}
                     onChange={(e) => setSignInPassword(e.target.value)}
                     required
-                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
+                    className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
                   />
                 </div>
-                <Button type="submit" className="w-full gradient-accent text-black font-semibold glow-neon" disabled={loading}>
+                <Button type="submit" className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
                 <div className="relative my-4">
                   <Separator />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="bg-background px-2 text-xs text-muted-foreground">OR</span>
+                    <span className="bg-white px-2 text-xs text-gray-500">OR</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -131,7 +131,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("google")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Chrome className="h-4 w-4" />
                   </Button>
@@ -139,7 +139,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("linkedin")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Linkedin className="h-4 w-4" />
                   </Button>
@@ -147,7 +147,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("github")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Github className="h-4 w-4" />
                   </Button>
@@ -155,10 +155,10 @@ export default function Auth() {
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
+            <TabsContent value="signup" className="space-y-4 mt-6">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullname">Full Name</Label>
+                  <Label htmlFor="fullname" className="text-gray-900">Full Name</Label>
                   <Input
                     id="fullname"
                     type="text"
@@ -166,11 +166,11 @@ export default function Auth() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
+                    className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email" className="text-gray-900">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -178,11 +178,11 @@ export default function Auth() {
                     value={signUpEmail}
                     onChange={(e) => setSignUpEmail(e.target.value)}
                     required
-                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
+                    className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password" className="text-gray-900">Password</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -190,13 +190,13 @@ export default function Auth() {
                     onChange={(e) => setSignUpPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
+                    className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">I am a...</Label>
+                  <Label htmlFor="role" className="text-gray-900">I am a...</Label>
                   <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                    <SelectTrigger id="role" className="glass border-white/20 focus:border-[#CAFF00]">
+                    <SelectTrigger id="role" className="border-gray-300 focus:border-[#0066FF]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -207,13 +207,13 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full gradient-accent text-black font-semibold glow-neon" disabled={loading}>
+                <Button type="submit" className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
                 <div className="relative my-4">
                   <Separator />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="bg-background px-2 text-xs text-muted-foreground">OR</span>
+                    <span className="bg-white px-2 text-xs text-gray-500">OR</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -221,7 +221,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("google")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Chrome className="h-4 w-4" />
                   </Button>
@@ -229,7 +229,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("linkedin")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Linkedin className="h-4 w-4" />
                   </Button>
@@ -237,7 +237,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("github")}
-                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
+                    className="w-full border-gray-300 hover:border-[#0066FF] hover:text-[#0066FF]"
                   >
                     <Github className="h-4 w-4" />
                   </Button>

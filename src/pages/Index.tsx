@@ -70,37 +70,37 @@ const Index = () => {
       
       <main className="flex-1">
         {/* Hero Section */}
-        <section id="hero" className="relative overflow-hidden pt-20 pb-32 px-4 bg-gradient-to-br from-white via-blue-50/30 to-green-50/30">
+        <section id="hero" className="relative overflow-hidden pt-4 pb-12 px-4 bg-gradient-to-br from-white via-blue-50/30 to-green-50/30">
           <div className="container mx-auto relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-center space-y-8 max-w-5xl mx-auto"
+              className="text-center max-w-5xl mx-auto flex flex-col items-center justify-center"
             >
-              {/* Logo in Hero - Bigger */}
+              {/* Logo in Hero - Perfectly Centered */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex justify-center mb-4"
+                className="flex justify-center items-center mb-3"
               >
                 <img
                   src="https://iili.io/fqdZCfn.png"
                   alt="Alignr Logo"
-                  className="h-48 md:h-64 lg:h-80 xl:h-96 w-auto drop-shadow-lg"
+                  className="h-40 md:h-52 lg:h-64 xl:h-72 w-auto drop-shadow-lg mx-auto"
                 />
               </motion.div>
               
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-3">
                 AI-Powered Career Development & Placement Ecosystem
               </h1>
               
-              <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-base md:text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed mb-6">
                 Connect students with opportunities, empower colleges with insights, and help employers find the perfect talent—all powered by intelligent AI.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 {user ? (
                   <Link to={getDashboardLink()}>
                     <Button size="lg" className="bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 px-8 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
