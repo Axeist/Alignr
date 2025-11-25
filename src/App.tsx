@@ -17,6 +17,8 @@ import StudentApplications from "./pages/student/Applications";
 import SkillPath from "./pages/student/Skills";
 import StudentEvents from "./pages/student/Events";
 import Leaderboard from "./pages/student/Leaderboard";
+import LinkedInAnalysis from "./pages/student/LinkedIn";
+import CareerReport from "./pages/student/CareerReport";
 
 // Alumni Pages
 import AlumniDashboard from "./pages/alumni/Dashboard";
@@ -56,7 +58,9 @@ const App = () => (
           <Route path="/student/dashboard" element={<ProtectedRoute allowedRoles={["student"]}><StudentDashboard /></ProtectedRoute>} />
           <Route path="/student/profile" element={<ProtectedRoute allowedRoles={["student"]}><StudentProfile /></ProtectedRoute>} />
           <Route path="/student/resume" element={<ProtectedRoute allowedRoles={["student"]}><ResumeBuilder /></ProtectedRoute>} />
+          <Route path="/student/linkedin" element={<ProtectedRoute allowedRoles={["student"]}><LinkedInAnalysis /></ProtectedRoute>} />
           <Route path="/student/jobs" element={<ProtectedRoute allowedRoles={["student"]}><JobBoard /></ProtectedRoute>} />
+          <Route path="/student/career-report" element={<ProtectedRoute allowedRoles={["student"]}><CareerReport /></ProtectedRoute>} />
           <Route path="/student/applications" element={<ProtectedRoute allowedRoles={["student"]}><StudentApplications /></ProtectedRoute>} />
           <Route path="/student/skills" element={<ProtectedRoute allowedRoles={["student"]}><SkillPath /></ProtectedRoute>} />
           <Route path="/student/events" element={<ProtectedRoute allowedRoles={["student"]}><StudentEvents /></ProtectedRoute>} />
