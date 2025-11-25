@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Github, Linkedin, Chrome } from "lucide-react";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -69,14 +71,23 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/10 p-4">
-      <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Alignr
-          </CardTitle>
-          <CardDescription>Your AI-powered career ecosystem</CardDescription>
-        </CardHeader>
+    <div className="min-h-screen bg-[#0F172A] flex flex-col">
+      <Header />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md border-white/20 bg-[#0F172A]/80 backdrop-blur-md glass">
+          <CardHeader className="space-y-4 text-center">
+            <div className="flex justify-center">
+              <img
+                src="https://iili.io/fqdZCfn.png"
+                alt="Alignr Logo"
+                className="h-16 w-auto"
+              />
+            </div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-[#CAFF00] via-[#FFFF00] to-[#CAFF00] bg-clip-text text-transparent">
+              Alignr
+            </CardTitle>
+            <CardDescription className="text-gray-400">Your AI-powered career ecosystem</CardDescription>
+          </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -95,6 +106,7 @@ export default function Auth() {
                     value={signInEmail}
                     onChange={(e) => setSignInEmail(e.target.value)}
                     required
+                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -105,9 +117,10 @@ export default function Auth() {
                     value={signInPassword}
                     onChange={(e) => setSignInPassword(e.target.value)}
                     required
+                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full gradient-accent text-black font-semibold glow-neon" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
                 <div className="relative my-4">
@@ -121,7 +134,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("google")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Chrome className="h-4 w-4" />
                   </Button>
@@ -129,7 +142,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("linkedin")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Linkedin className="h-4 w-4" />
                   </Button>
@@ -137,7 +150,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("github")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Github className="h-4 w-4" />
                   </Button>
@@ -156,6 +169,7 @@ export default function Auth() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
+                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -167,6 +181,7 @@ export default function Auth() {
                     value={signUpEmail}
                     onChange={(e) => setSignUpEmail(e.target.value)}
                     required
+                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -178,12 +193,13 @@ export default function Auth() {
                     onChange={(e) => setSignUpPassword(e.target.value)}
                     required
                     minLength={6}
+                    className="glass border-white/20 focus:border-[#CAFF00] focus:ring-[#CAFF00]"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">I am a...</Label>
                   <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                    <SelectTrigger id="role">
+                    <SelectTrigger id="role" className="glass border-white/20 focus:border-[#CAFF00]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -194,7 +210,7 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full gradient-accent text-black font-semibold glow-neon" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
                 <div className="relative my-4">
@@ -208,7 +224,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("google")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Chrome className="h-4 w-4" />
                   </Button>
@@ -216,7 +232,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("linkedin")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Linkedin className="h-4 w-4" />
                   </Button>
@@ -224,7 +240,7 @@ export default function Auth() {
                     type="button"
                     variant="outline"
                     onClick={() => signInWithOAuth("github")}
-                    className="w-full"
+                    className="w-full border-white/20 hover:border-[#CAFF00] hover:text-[#CAFF00]"
                   >
                     <Github className="h-4 w-4" />
                   </Button>
@@ -234,6 +250,8 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
+      <Footer />
     </div>
   );
 }

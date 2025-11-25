@@ -17,15 +17,18 @@
     --popover: 222 47% 11%;
     --popover-foreground: 213 31% 91%;
     
-    /* Neon accent colors */
-    --primary: 239 84% 67%; /* #6366F1 - Deep purple */
+    /* Neon accent colors - matching logo theme */
+    --primary: 239 84% 67%; /* #6366F1 - Deep purple/blue */
     --primary-foreground: 0 0% 100%;
     
     --secondary: 188 94% 43%; /* #06B6D4 - Electric cyan */
     --secondary-foreground: 0 0% 100%;
     
-    --accent: 330 81% 70%; /* #F472B6 - Neon pink */
-    --accent-foreground: 0 0% 100%;
+    --accent: 60 100% 50%; /* #CAFF00 - Neon green/yellow from logo */
+    --accent-foreground: 0 0% 0%;
+    
+    --neon-green: 60 100% 50%; /* #CAFF00 - Bright neon green */
+    --logo-blue: 220 100% 25%; /* Dark blue from logo */
     
     --muted: 223 47% 20%;
     --muted-foreground: 213 31% 70%;
@@ -61,6 +64,10 @@
 @layer base {
   * {
     @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
   }
   
   body {
@@ -113,7 +120,16 @@
   }
   
   .gradient-accent {
-    background: linear-gradient(135deg, #F472B6 0%, #EC4899 100%);
+    background: linear-gradient(135deg, #CAFF00 0%, #FFFF00 100%);
+  }
+  
+  .gradient-logo {
+    background: linear-gradient(135deg, #1E3A8A 0%, #6366F1 50%, #CAFF00 100%);
+  }
+  
+  /* Neon green glow */
+  .glow-neon {
+    box-shadow: 0 0 20px rgba(202, 255, 0, 0.4), 0 0 40px rgba(202, 255, 0, 0.2);
   }
   
   /* Smooth animations */
