@@ -3,7 +3,7 @@
 ## Your API Key
 Your Gemini API key has been configured in the deployment scripts:
 ```
-AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c
+AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA
 ```
 
 ## ⚡ Quick Deploy (Choose One)
@@ -22,7 +22,7 @@ chmod +x deploy-all-functions.sh
 ### Option 3: Manual Deploy
 ```bash
 # 1. Set API key
-supabase secrets set GEMINI_API_KEY="AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c"
+supabase secrets set GEMINI_API_KEY="AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA"
 
 # 2. Deploy all functions
 supabase functions deploy analyze-resume

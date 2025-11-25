@@ -14,7 +14,7 @@ fi
 
 # Set API key
 echo "📝 Setting Gemini API Key..."
-npx supabase secrets set GEMINI_API_KEY="AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c" --project-ref tkghwmabacbmpfyconyx
+npx supabase secrets set GEMINI_API_KEY="AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA" --project-ref tkghwmabacbmpfyconyx
 
 if [ $? -ne 0 ]; then
   echo "❌ Failed to set API key"

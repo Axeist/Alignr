@@ -8,7 +8,7 @@
 4. Click **Add new secret**
 5. Enter:
    - **Name**: `GEMINI_API_KEY`
-   - **Value**: `AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c`
+   - **Value**: `AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA`
 6. Click **Save**
 
 ## Step 2: Deploy Functions via Dashboard

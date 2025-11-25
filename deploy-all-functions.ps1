@@ -4,7 +4,7 @@ Write-Host "🚀 Deploying Alignr Edge Functions..." -ForegroundColor Cyan
 Write-Host ""
 
 # Set your Gemini API key
-$GEMINI_API_KEY = "AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c"
+$GEMINI_API_KEY = "AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA"
 
 Write-Host "📝 Setting Gemini API Key..." -ForegroundColor Yellow
 supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY"

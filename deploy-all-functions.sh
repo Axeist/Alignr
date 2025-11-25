@@ -7,7 +7,7 @@ echo "🚀 Deploying Alignr Edge Functions..."
 echo ""
 
 # Set your Gemini API key
-GEMINI_API_KEY="AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c"
+GEMINI_API_KEY="AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA"
 
 echo "📝 Setting Gemini API Key..."
 supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY"

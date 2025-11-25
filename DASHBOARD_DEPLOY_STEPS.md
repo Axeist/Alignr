@@ -22,7 +22,7 @@
 6. Fill in:
    ```
    Name: GEMINI_API_KEY
-   Value: AIzaSyDKs8tZ-Np1Gjpj0veH-keEz65BSK-fe_c
+   Value: AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA
    ```
 7. Click **Save**
 
