@@ -1,38 +1,57 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { original_text, context, job_description } = await req.json();
 
     if (!original_text) {
       return new Response(
         JSON.stringify({ error: "Missing original_text" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
-    const prompt = `Rewrite this resume bullet point for maximum impact. Use action verbs, quantify achievements, and add relevant keywords.
+    if (!GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
 
-Original Text:
-${original_text}
-
-${job_description ? `Job Description Keywords: ${job_description.substring(0, 500)}` : ""}
-
-${context ? `Context: ${JSON.stringify(context).substring(0, 500)}` : ""}
-
-Provide 3 improved versions in JSON format:
+    const prompt = `Rewrite resume bullet. Return JSON only:
 {
-  "rewrites": [
-    "<version 1>",
-    "<version 2>",
-    "<version 3>"
-  ]
+  "rewrites": ["<version1>", "<version2>", "<version3>"]
 }
 
-Return ONLY valid JSON.`;
+Original: ${original_text.substring(0, 200)}
+${job_description ? `Job: ${job_description.substring(0, 150)}` : ""}
+${context ? `Context: ${JSON.stringify(context).substring(0, 150)}` : ""}`;
 
     const geminiResponse = await fetch(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
@@ -61,12 +80,24 @@ Return ONLY valid JSON.`;
         success: true,
         rewrites: result.rewrites || []
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error: any) {
+    console.error("Error rewriting bullet:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message || "Failed to rewrite bullet point" }),
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   }
 });

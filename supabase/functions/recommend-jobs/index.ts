@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,28 +90,25 @@ serve(async (req) => {
           career_score: profile?.career_score || 0
         };
 
-        const prompt = `Calculate match score (0-100) between this student and job.
+        // Optimize: Limit job description and requirements
+        const jobDesc = (job.description || "").substring(0, 300);
+        const jobReq = (job.requirements || "").substring(0, 200);
+        const studentSkills = studentProfile.skills.slice(0, 10).join(", ");
 
-Student Profile:
-${JSON.stringify(studentProfile, null, 2)}
-
-Job Description:
-Title: ${job.title}
-Company: ${job.company_name}
-Description: ${job.description}
-Requirements: ${job.requirements}
-Skills Required: ${JSON.stringify(job.skills_required || [])}
-
-Provide JSON response:
+        const prompt = `Job match score. Return JSON only:
 {
-  "match_score": <number 0-100>,
-  "matched_skills": [<array of matched skills>],
-  "missing_skills": [<array of missing skills>],
-  "explanation": "<brief explanation>",
-  "improvement_tips": [<array of tips to improve match>]
+  "match_score": <0-100>,
+  "matched_skills": [<skills>],
+  "missing_skills": [<skills>],
+  "explanation": "<brief>",
+  "improvement_tips": [<2-3 tips>]
 }
 
-Return ONLY valid JSON.`;
+Student skills: ${studentSkills}
+Job: ${job.title} at ${job.company_name}
+Desc: ${jobDesc}
+Req: ${jobReq}
+Job skills: ${(job.skills_required || []).slice(0, 10).join(", ")}`;
 
         try {
           const geminiResponse = await fetch(

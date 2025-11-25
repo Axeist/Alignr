@@ -2,16 +2,46 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { linkedin_url, profile_text, user_id, target_roles } = await req.json();
 
     if (!user_id || (!linkedin_url && !profile_text)) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+
+    if (!GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -21,43 +51,23 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // For now, we'll use the provided text. In production, you'd scrape LinkedIn if URL provided.
-    const profileContent = profile_text || `LinkedIn Profile: ${linkedin_url}`;
+    // Optimize: Limit profile text to 2000 chars
+    const profileContent = (profile_text || `LinkedIn: ${linkedin_url}`).substring(0, 2000);
 
-    // Call Gemini API for analysis
-    const prompt = `Analyze this LinkedIn profile comprehensively.
-
-Profile Content:
-${profileContent}
-
-${target_roles ? `Target Roles: ${JSON.stringify(target_roles)}` : ""}
-
-Provide a comprehensive analysis in JSON format:
+    const prompt = `LinkedIn analysis. Return JSON only:
 {
-  "completeness_score": <number 0-100>,
-  "headline": {
-    "score": <number 0-100>,
-    "feedback": "<feedback text>"
-  },
-  "about": {
-    "score": <number 0-100>,
-    "feedback": "<feedback text>",
-    "rewrite": "<optimized about section>"
-  },
-  "experience": {
-    "score": <number 0-100>,
-    "feedback": "<feedback text>"
-  },
-  "skills": {
-    "score": <number 0-100>,
-    "feedback": "<feedback text>"
-  },
-  "recommended_headlines": [<array of 3-5 headline suggestions>],
-  "missing_skills": [<array of skills to add>],
-  "checklist": [<array of prioritized improvement actions>]
+  "completeness_score": <0-100>,
+  "headline": {"score": <0-100>, "feedback": "<text>"},
+  "about": {"score": <0-100>, "feedback": "<text>", "rewrite": "<optimized>"},
+  "experience": {"score": <0-100>, "feedback": "<text>"},
+  "skills": {"score": <0-100>, "feedback": "<text>"},
+  "recommended_headlines": [<3-5 headlines>],
+  "missing_skills": [<skills>],
+  "checklist": [<3-5 actions>]
 }
 
-Return ONLY valid JSON, no markdown formatting.`;
+Profile: ${profileContent}
+${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
 
     const geminiResponse = await fetch(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
@@ -73,7 +83,8 @@ Return ONLY valid JSON, no markdown formatting.`;
     );
 
     if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.statusText}`);
+      const errorText = await geminiResponse.text();
+      throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorText}`);
     }
 
     const geminiData = await geminiResponse.json();
@@ -94,7 +105,15 @@ Return ONLY valid JSON, no markdown formatting.`;
       };
     }
 
-    // Upsert LinkedIn profile
+    // Upsert LinkedIn profile - ensure about_rewrite is stored in analysis_result
+    const analysisResultWithRewrite = {
+      ...analysisResult,
+      about: {
+        ...analysisResult.about,
+        rewrite: analysisResult.about?.rewrite || ""
+      }
+    };
+
     const { error: upsertError } = await supabaseClient
       .from("linkedin_profiles")
       .upsert({
@@ -102,7 +121,7 @@ Return ONLY valid JSON, no markdown formatting.`;
         linkedin_url: linkedin_url || null,
         profile_text: profile_text || null,
         completeness_score: analysisResult.completeness_score || 0,
-        analysis_result: analysisResult,
+        analysis_result: analysisResultWithRewrite,
         last_analyzed: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, {
@@ -126,14 +145,26 @@ Return ONLY valid JSON, no markdown formatting.`;
         recommended_headlines: analysisResult.recommended_headlines || [],
         missing_skills: analysisResult.missing_skills || [],
         checklist: analysisResult.checklist || [],
-        about_rewrite: analysisResult.about?.rewrite
+        about_rewrite: analysisResult.about?.rewrite || ""
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error: any) {
+    console.error("Error analyzing LinkedIn profile:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message || "Failed to analyze LinkedIn profile" }),
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   }
 });

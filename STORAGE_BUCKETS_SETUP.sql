@@ -1,0 +1,121 @@
+-- ============================================
+-- STORAGE BUCKETS SETUP INSTRUCTIONS
+-- ============================================
+-- 
+-- IMPORTANT: Storage buckets cannot be created via SQL in Supabase.
+-- You must create them through the Supabase Dashboard or API.
+--
+-- Follow these steps:
+--
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Click "New bucket" for each bucket below
+-- 3. Configure as specified
+--
+-- ============================================
+-- BUCKET 1: resumes
+-- ============================================
+-- Name: resumes
+-- Public: Yes
+-- File size limit: 10 MB
+-- Allowed MIME types: application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document
+-- 
+-- This bucket stores uploaded resume files (PDF/DOCX)
+-- Files are organized by user_id: resumes/{user_id}/{timestamp}.{ext}
+
+-- ============================================
+-- BUCKET 2: career-reports
+-- ============================================
+-- Name: career-reports
+-- Public: Yes
+-- File size limit: 5 MB
+-- Allowed MIME types: text/html
+--
+-- This bucket stores generated career reports as HTML files
+-- Files are organized by user_id: career-reports/{user_id}/{timestamp}.html
+
+-- ============================================
+-- BUCKET 3: avatars
+-- ============================================
+-- Name: avatars
+-- Public: Yes
+-- File size limit: 2 MB
+-- Allowed MIME types: image/jpeg, image/png, image/webp
+--
+-- This bucket stores user profile pictures
+-- Files are organized by user_id: avatars/{user_id}/{timestamp}.{ext}
+
+-- ============================================
+-- BUCKET 4: logos
+-- ============================================
+-- Name: logos
+-- Public: Yes
+-- File size limit: 1 MB
+-- Allowed MIME types: image/jpeg, image/png, image/svg+xml
+--
+-- This bucket stores college and company logos
+-- Files are organized by entity: logos/colleges/{college_id}.{ext} or logos/companies/{company_id}.{ext}
+
+-- ============================================
+-- ALTERNATIVE: Create buckets via Supabase CLI
+-- ============================================
+-- You can also use the Supabase Management API or CLI:
+--
+-- Using curl (replace YOUR_PROJECT_REF and YOUR_SERVICE_KEY):
+--
+-- curl -X POST 'https://api.supabase.com/v1/projects/YOUR_PROJECT_REF/storage/buckets' \
+--   -H 'Authorization: Bearer YOUR_SERVICE_KEY' \
+--   -H 'Content-Type: application/json' \
+--   -d '{
+--     "name": "resumes",
+--     "public": true,
+--     "file_size_limit": 10485760,
+--     "allowed_mime_types": ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+--   }'
+--
+-- curl -X POST 'https://api.supabase.com/v1/projects/YOUR_PROJECT_REF/storage/buckets' \
+--   -H 'Authorization: Bearer YOUR_SERVICE_KEY' \
+--   -H 'Content-Type: application/json' \
+--   -d '{
+--     "name": "career-reports",
+--     "public": true,
+--     "file_size_limit": 5242880,
+--     "allowed_mime_types": ["text/html"]
+--   }'
+--
+-- curl -X POST 'https://api.supabase.com/v1/projects/YOUR_PROJECT_REF/storage/buckets' \
+--   -H 'Authorization: Bearer YOUR_SERVICE_KEY' \
+--   -H 'Content-Type: application/json' \
+--   -d '{
+--     "name": "avatars",
+--     "public": true,
+--     "file_size_limit": 2097152,
+--     "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"]
+--   }'
+--
+-- curl -X POST 'https://api.supabase.com/v1/projects/YOUR_PROJECT_REF/storage/buckets' \
+--   -H 'Authorization: Bearer YOUR_SERVICE_KEY' \
+--   -H 'Content-Type: application/json' \
+--   -d '{
+--     "name": "logos",
+--     "public": true,
+--     "file_size_limit": 1048576,
+--     "allowed_mime_types": ["image/jpeg", "image/png", "image/svg+xml"]
+--   }'
+--
+-- ============================================
+-- VERIFY BUCKETS AFTER CREATION
+-- ============================================
+-- After creating buckets, verify they exist:
+--
+-- SELECT name, public, file_size_limit 
+-- FROM storage.buckets 
+-- WHERE name IN ('resumes', 'career-reports', 'avatars', 'logos');
+--
+-- ============================================
+-- NOTES
+-- ============================================
+-- - All buckets should be PUBLIC for easy access
+-- - File size limits are in bytes (10 MB = 10485760 bytes)
+-- - MIME type restrictions help prevent malicious uploads
+-- - RLS policies in the migration file will control access
+

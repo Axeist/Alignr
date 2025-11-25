@@ -86,6 +86,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    - Create a storage bucket named `resumes` with public access
    - Create a storage bucket named `avatars` with public access
    - Create a storage bucket named `logos` with public access
+   - Create a storage bucket named `career-reports` with public access
 
 6. **Deploy Supabase Edge Functions**
 ```bash
@@ -103,10 +104,13 @@ supabase functions deploy analyze-resume
 supabase functions deploy analyze-linkedin
 supabase functions deploy recommend-jobs
 supabase functions deploy rewrite-bullet
+supabase functions deploy generate-skill-path
+supabase functions deploy generate-career-report
 ```
 
 7. **Set Edge Function secrets**
 ```bash
+# Get your Gemini API key from https://aistudio.google.com/app/apikey
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 ```
 

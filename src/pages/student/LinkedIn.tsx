@@ -311,7 +311,7 @@ export default function LinkedInAnalysis() {
             </div>
 
             {/* About Section Rewrite */}
-            {analysis.about_rewrite && (
+            {(analysis.about?.rewrite || analysis.about_rewrite) && (
               <Card className="glass-hover">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -323,14 +323,15 @@ export default function LinkedInAnalysis() {
                 <CardContent className="space-y-4">
                   <div className="p-4 rounded-lg glass">
                     <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                      {analysis.about_rewrite}
+                      {analysis.about?.rewrite || analysis.about_rewrite}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       onClick={() => {
-                        navigator.clipboard.writeText(analysis.about_rewrite);
+                        const rewriteText = analysis.about?.rewrite || analysis.about_rewrite || "";
+                        navigator.clipboard.writeText(rewriteText);
                         toast.success("About section copied!");
                       }}
                     >

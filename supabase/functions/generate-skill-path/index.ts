@@ -2,16 +2,46 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { user_id, target_role, current_skills, skill_gaps } = await req.json();
 
     if (!user_id || !target_role) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+
+    if (!GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -33,49 +63,28 @@ serve(async (req) => {
     const userSkills = current_skills || resume?.extracted_data?.skills || [];
     const gaps = skill_gaps || [];
 
-    // Call Gemini API
-    const prompt = `Create a comprehensive 3-6 month learning path to become a ${target_role}.
+    // Optimize: Limit skills arrays
+    const skillsStr = userSkills.slice(0, 10).join(", ");
+    const gapsStr = gaps.slice(0, 10).join(", ");
 
-Current Skills: ${JSON.stringify(userSkills)}
-Skill Gaps: ${JSON.stringify(gaps)}
-
-Provide a structured learning path in JSON format:
+    const prompt = `Create 3-6 month learning path for ${target_role}. Return JSON only:
 {
-  "path_name": "<path name>",
+  "path_name": "<name>",
   "milestones": [
     {
-      "title": "<milestone title>",
-      "skills": [<array of skills>],
-      "courses": [
-        {
-          "title": "<course title>",
-          "provider": "<provider name>",
-          "duration": "<duration>",
-          "level": "<Beginner/Intermediate/Advanced>",
-          "free": <boolean>,
-          "url": "<course URL>"
-        }
-      ],
-      "projects": [
-        {
-          "title": "<project title>",
-          "description": "<description>",
-          "tech_stack": [<array of technologies>],
-          "hours": "<estimated hours>"
-        }
-      ],
-      "time_estimate": "<2-4 weeks>",
+      "title": "<title>",
+      "skills": [<skills>],
+      "courses": [{"title": "<title>", "provider": "<name>", "duration": "<time>", "level": "<level>", "free": <bool>, "url": "<url>"}],
+      "projects": [{"title": "<title>", "description": "<desc>", "tech_stack": [<tech>], "hours": "<hours>"}],
+      "time_estimate": "<weeks>",
       "completed": false
     }
   ],
-  "final_project": {
-    "title": "<capstone project title>",
-    "description": "<description>",
-    "skills": [<all skills learned>]
-  }
+  "final_project": {"title": "<title>", "description": "<desc>", "skills": [<skills>]}
 }
 
-Return ONLY valid JSON, no markdown formatting.`;
+Skills: ${skillsStr}
+Gaps: ${gapsStr}`;
 
     const geminiResponse = await fetch(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
@@ -130,12 +139,24 @@ Return ONLY valid JSON, no markdown formatting.`;
         success: true,
         skill_path: skillPath || pathData
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error: any) {
+    console.error("Error generating skill path:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message || "Failed to generate skill path" }),
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   }
 });
