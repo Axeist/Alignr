@@ -106,12 +106,17 @@ export default function ResumeBuilder() {
       if (error) throw error;
 
       // Analyze resume
-      const { error: analyzeError } = await supabase.functions.invoke("analyze-resume", {
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-resume", {
         body: { resume_url: publicUrl, user_id: user.id, resume_id: data.id }
       });
 
       if (analyzeError) {
         console.error("Analysis error:", analyzeError);
+        // Check if it's a configuration error
+        const errorMsg = analyzeError?.message || (analyzeData?.error || "");
+        if (errorMsg.includes("GEMINI_API_KEY")) {
+          toast.error("AI analysis failed: GEMINI_API_KEY not configured. Please contact support.");
+        }
         // Don't throw - resume is uploaded even if analysis fails
       }
 
@@ -141,14 +146,26 @@ export default function ResumeBuilder() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract error message from response
+        const errorMessage = error.message || (typeof error === 'string' ? error : 'Unknown error');
+        throw new Error(errorMessage);
+      }
+      
+      // Check if response has error field
+      if (data && data.error) {
+        throw new Error(data.error);
+      }
+      
       return data;
     },
     onSuccess: (data) => {
       toast.success("AI suggestions generated!");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to generate suggestions");
+      const errorMessage = error?.message || error?.error || "Failed to generate suggestions. Please check if GEMINI_API_KEY is configured.";
+      toast.error(errorMessage);
+      console.error("Rewrite error:", error);
     }
   });
 
