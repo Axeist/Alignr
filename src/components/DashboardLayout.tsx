@@ -83,19 +83,22 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
       {/* Desktop Sidebar - Fixed */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-lg fixed left-0 top-0 h-screen z-50 transition-all duration-300",
+          "hidden lg:flex flex-col bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 border-r border-blue-200/50 shadow-lg fixed left-0 top-0 h-screen z-50 transition-all duration-300",
           sidebarOpen ? "w-72" : "w-20"
         )}
       >
         {/* Logo Section with Collapse Button at Top */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-center relative">
+        <div className={cn(
+          "border-b border-blue-200/50 flex items-center justify-center relative",
+          sidebarOpen ? "p-6" : "p-4"
+        )}>
           <Link to="/" className="flex items-center justify-center group flex-shrink-0 w-full">
             <motion.img
-              src="https://iili.io/fqdZCfn.png"
+              src="/favicon.ico"
               alt="Alignr Logo"
               className={cn(
-                "transition-all duration-300",
-                sidebarOpen ? "h-20 w-auto" : "h-16 w-auto"
+                "transition-all duration-300 object-contain",
+                sidebarOpen ? "h-24 w-auto" : "h-14 w-14"
               )}
               whileHover={{ scale: 1.05 }}
             />
@@ -105,7 +108,7 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
               onClick={() => setSidebarOpen(false)}
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-gray-600 hover:text-gray-900 hover:bg-gray-100 absolute right-2 top-1/2 -translate-y-1/2"
+              className="h-8 w-8 text-gray-700 hover:text-gray-900 hover:bg-blue-100/50 absolute right-2 top-1/2 -translate-y-1/2"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -114,12 +117,12 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
 
         {/* Collapse Button When Sidebar is Collapsed */}
         {!sidebarOpen && (
-          <div className="p-2 border-b border-gray-200">
+          <div className="p-2 border-b border-blue-200/50">
             <Button
               onClick={() => setSidebarOpen(true)}
               variant="ghost"
               size="icon"
-              className="w-full text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="w-full text-gray-700 hover:text-gray-900 hover:bg-blue-100/50"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -138,9 +141,9 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
                 to={item.href}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group",
-                  "hover:bg-primary/10 hover:text-primary",
+                  "hover:bg-blue-100/50 hover:text-primary",
                   isActive
-                    ? "bg-primary/15 text-primary border-l-4 border-primary font-semibold"
+                    ? "bg-blue-100/70 text-primary border-l-4 border-primary font-semibold"
                     : "text-gray-700 hover:text-gray-900",
                   !sidebarOpen && "justify-center px-3"
                 )}
@@ -161,13 +164,13 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
         </nav>
 
         {/* User Section & Logout */}
-        <div className="p-4 border-t border-gray-200 space-y-3">
+        <div className="p-4 border-t border-blue-200/50 space-y-3">
           {/* User Info */}
           {sidebarOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-100"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-100/50"
             >
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                 <UserCircle className="h-6 w-6 text-primary" />
@@ -204,14 +207,14 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
 
       {/* Mobile Sidebar Sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-72 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 p-0">
+        <SheetContent side="left" className="w-72 bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 border-r border-blue-200/50 p-0">
           {/* Logo Section */}
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-blue-200/50">
             <Link to="/" className="flex items-center justify-center" onClick={() => setMobileMenuOpen(false)}>
               <img
-                src="https://iili.io/fqdZCfn.png"
+                src="/favicon.ico"
                 alt="Alignr Logo"
-                className="h-20 w-auto"
+                className="h-24 w-auto object-contain"
               />
             </Link>
           </div>
@@ -229,9 +232,9 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-                    "hover:bg-primary/10 hover:text-primary",
+                    "hover:bg-blue-100/50 hover:text-primary",
                     isActive
-                      ? "bg-primary/15 text-primary border-l-4 border-primary font-semibold"
+                      ? "bg-blue-100/70 text-primary border-l-4 border-primary font-semibold"
                       : "text-gray-700 hover:text-gray-900"
                   )}
                 >
@@ -243,9 +246,9 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
           </nav>
 
           {/* User Section & Logout */}
-          <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="p-4 border-t border-blue-200/50 space-y-3">
             {/* User Info */}
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-100">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-100/50">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                 <UserCircle className="h-6 w-6 text-primary" />
               </div>
@@ -274,20 +277,20 @@ export function DashboardLayout({ children, navItems }: DashboardLayoutProps) {
         sidebarOpen ? "lg:ml-72" : "lg:ml-20"
       )}>
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur-md shadow-sm">
+        <header className="lg:hidden sticky top-0 z-40 border-b border-blue-200/50 bg-gradient-to-r from-blue-50 via-cyan-50 to-teal-50/95 backdrop-blur-md shadow-sm">
           <div className="flex h-16 items-center justify-between px-4">
             <Link to="/" className="flex items-center">
               <img
-                src="https://iili.io/fqdZCfn.png"
+                src="/favicon.ico"
                 alt="Alignr Logo"
-                className="h-16 w-auto"
+                className="h-14 w-14 object-contain"
               />
             </Link>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(true)}
-              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              className="text-gray-700 hover:text-gray-900 hover:bg-blue-100/50"
             >
               <Menu className="h-6 w-6" />
             </Button>
