@@ -5,20 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, Save, Lock } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { colleges, collegeCategories, getCollegesByCategory, getCollegeById, type CollegeCategory } from "@/lib/colleges";
-import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, Lock, LockIcon } from "lucide-react";
 
-export default function StudentProfile() {
+export default function CollegeProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -28,18 +22,15 @@ export default function StudentProfile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [collegeSearchOpen, setCollegeSearchOpen] = useState(false);
-  const [collegeCategoryFilter, setCollegeCategoryFilter] = useState<CollegeCategory | "all">("all");
 
   const navItems = [
-    { label: "Dashboard", href: "/student/dashboard" },
-    { label: "Profile", href: "/student/profile" },
-    { label: "Resume Builder", href: "/student/resume" },
-    { label: "Job Board", href: "/student/jobs" },
-    { label: "My Applications", href: "/student/applications" },
-    { label: "Skill Path", href: "/student/skills" },
-    { label: "Events", href: "/student/events" },
-    { label: "Leaderboard", href: "/student/leaderboard" },
+    { label: "Dashboard", href: "/college/dashboard" },
+    { label: "Students", href: "/college/students" },
+    { label: "Placement Drives", href: "/college/drives" },
+    { label: "Events", href: "/college/events" },
+    { label: "Analytics", href: "/college/analytics" },
+    { label: "Job Approvals", href: "/college/approvals" },
+    { label: "Profile", href: "/college/profile" },
   ];
 
   // Fetch profile data
@@ -57,11 +48,6 @@ export default function StudentProfile() {
     },
     enabled: !!user,
   });
-
-  // Get college from our list
-  const selectedCollegeId = profile?.colleges?.name 
-    ? colleges.find(c => c.name === profile.colleges.name)?.id || ""
-    : "";
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
@@ -97,7 +83,7 @@ export default function StudentProfile() {
     mutationFn: async ({ currentPwd, newPwd }: { currentPwd: string; newPwd: string }) => {
       if (!user?.email) throw new Error("Not authenticated");
 
-      // Verify current password by attempting to sign in
+      // Verify current password
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: currentPwd,
@@ -132,64 +118,6 @@ export default function StudentProfile() {
     },
   });
 
-  // College update mutation
-  const updateCollegeMutation = useMutation({
-    mutationFn: async (collegeId: string) => {
-      if (!user) throw new Error("Not authenticated");
-      const college = getCollegeById(collegeId);
-      if (!college) throw new Error("College not found");
-
-      // Check if college exists in DB, create if not
-      let { data: existingCollege } = await supabase
-        .from("colleges")
-        .select("id")
-        .eq("name", college.name)
-        .single();
-
-      let collegeDbId: string;
-      if (existingCollege) {
-        collegeDbId = existingCollege.id;
-      } else {
-        const { data: newCollege, error: createError } = await supabase
-          .from("colleges")
-          .insert({
-            name: college.name,
-            location: college.location,
-          })
-          .select("id")
-          .single();
-        
-        if (createError) throw createError;
-        collegeDbId = newCollege.id;
-      }
-
-      // Update profile with college_id
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          college_id: collegeDbId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
-      toast({
-        title: "Success",
-        description: "College updated successfully!",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update college",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
@@ -217,10 +145,6 @@ export default function StudentProfile() {
     phone: "",
     bio: "",
     linkedin_url: "",
-    github_url: "",
-    portfolio_url: "",
-    year: undefined as number | undefined,
-    department: "",
   });
 
   useEffect(() => {
@@ -231,10 +155,6 @@ export default function StudentProfile() {
         phone: profile.phone || "",
         bio: profile.bio || "",
         linkedin_url: profile.linkedin_url || "",
-        github_url: profile.github_url || "",
-        portfolio_url: profile.portfolio_url || "",
-        year: profile.year || undefined,
-        department: profile.department || "",
       });
     }
   }, [profile]);
@@ -271,7 +191,7 @@ export default function StudentProfile() {
             <Card>
               <CardHeader>
                 <CardTitle>General Information</CardTitle>
-                <CardDescription>Update your personal information</CardDescription>
+                <CardDescription>Update your profile information</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleProfileUpdate} className="space-y-4">
@@ -300,43 +220,14 @@ export default function StudentProfile() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+91 9876543210"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="year">Year</Label>
-                      <Select
-                        value={formData.year?.toString() || ""}
-                        onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) || undefined })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">1st Year</SelectItem>
-                          <SelectItem value="2">2nd Year</SelectItem>
-                          <SelectItem value="3">3rd Year</SelectItem>
-                          <SelectItem value="4">4th Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="phone">Phone</Label>
                     <Input
-                      id="department"
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      placeholder="e.g., Computer Science, Mechanical Engineering"
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+91 9876543210"
                     />
                   </div>
 
@@ -351,37 +242,15 @@ export default function StudentProfile() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="linkedin_url">LinkedIn URL</Label>
-                      <Input
-                        id="linkedin_url"
-                        type="url"
-                        value={formData.linkedin_url}
-                        onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                        placeholder="https://linkedin.com/in/..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="github_url">GitHub URL</Label>
-                      <Input
-                        id="github_url"
-                        type="url"
-                        value={formData.github_url}
-                        onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-                        placeholder="https://github.com/..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="portfolio_url">Portfolio URL</Label>
-                      <Input
-                        id="portfolio_url"
-                        type="url"
-                        value={formData.portfolio_url}
-                        onChange={(e) => setFormData({ ...formData, portfolio_url: e.target.value })}
-                        placeholder="https://yourportfolio.com"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="linkedin_url">LinkedIn URL</Label>
+                    <Input
+                      id="linkedin_url"
+                      type="url"
+                      value={formData.linkedin_url}
+                      onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                      placeholder="https://linkedin.com/in/..."
+                    />
                   </div>
 
                   <Button type="submit" disabled={updateProfileMutation.isPending}>
@@ -402,116 +271,43 @@ export default function StudentProfile() {
             </Card>
           </TabsContent>
 
-          {/* College Tab */}
+          {/* College Tab - Locked */}
           <TabsContent value="college" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>College Information</CardTitle>
-                <CardDescription>Select or change your college</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <LockIcon className="h-5 w-5" />
+                  College Information
+                </CardTitle>
+                <CardDescription>Your college cannot be changed after signup. Only one user can represent each college.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>College Category</Label>
-                  <Select
-                    value={collegeCategoryFilter}
-                    onValueChange={(value) => setCollegeCategoryFilter(value as CollegeCategory | "all")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {collegeCategories.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Select College</Label>
-                  <Popover open={collegeSearchOpen} onOpenChange={setCollegeSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={collegeSearchOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedCollegeId
-                          ? getCollegeById(selectedCollegeId)?.name || "Select college..."
-                          : profile?.colleges?.name || "Select college..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search college..." />
-                        <CommandList>
-                          <CommandEmpty>No college found.</CommandEmpty>
-                          {(() => {
-                            const filteredColleges = collegeCategoryFilter === "all"
-                              ? colleges
-                              : getCollegesByCategory(collegeCategoryFilter);
-                            
-                            const grouped = filteredColleges.reduce((acc, college) => {
-                              if (!acc[college.category]) {
-                                acc[college.category] = [];
-                              }
-                              acc[college.category].push(college);
-                              return acc;
-                            }, {} as Record<CollegeCategory, typeof colleges>);
-                            
-                            return Object.entries(grouped).map(([category, categoryColleges]) => {
-                              const categoryLabel = collegeCategories.find(c => c.value === category)?.label || category;
-                              return (
-                                <CommandGroup key={category} heading={categoryLabel}>
-                                  {categoryColleges.map((college) => (
-                                    <CommandItem
-                                      key={college.id}
-                                      value={`${college.name} ${college.location} ${college.state}`}
-                                      onSelect={() => {
-                                        updateCollegeMutation.mutate(college.id);
-                                        setCollegeSearchOpen(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          selectedCollegeId === college.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span>{college.name}</span>
-                                        <span className="text-xs text-gray-500">{college.location}, {college.state}</span>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              );
-                            });
-                          })()}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {updateCollegeMutation.isPending && (
-                    <p className="text-sm text-gray-500 flex items-center">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating college...
-                    </p>
-                  )}
-                </div>
-
-                {profile?.colleges && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Current College</h4>
-                    <p className="text-sm">{profile.colleges.name}</p>
+              <CardContent>
+                {profile?.colleges ? (
+                  <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <LockIcon className="h-4 w-4 text-gray-500" />
+                      <h4 className="font-semibold">College (Locked)</h4>
+                    </div>
+                    <p className="text-lg">{profile.colleges.name}</p>
                     {profile.colleges.location && (
                       <p className="text-sm text-gray-500">{profile.colleges.location}</p>
                     )}
+                    {profile.colleges.website && (
+                      <p className="text-sm text-blue-600">
+                        <a href={profile.colleges.website} target="_blank" rel="noopener noreferrer">
+                          {profile.colleges.website}
+                        </a>
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-2">
+                      As the college representative, you are the only user authorized for this college. College selection is permanent and cannot be changed. If you need to update this, please contact support.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-sm text-yellow-800">
+                      No college assigned. Please contact support to set your college.
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -614,3 +410,4 @@ export default function StudentProfile() {
     </DashboardLayout>
   );
 }
+

@@ -9,11 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
-import { Github, Linkedin, Chrome, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { Github, Linkedin, Chrome, Eye, EyeOff, CheckCircle2, XCircle, Check, ChevronsUpDown } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { colleges, collegeCategories, getCollegesByCategory, type CollegeCategory, getCollegeById } from "@/lib/colleges";
+import { useToast } from "@/hooks/use-toast";
 
 interface PasswordValidation {
   minLength: boolean;
@@ -85,6 +89,7 @@ const ValidationItem = ({ isValid, text }: { isValid: boolean; text: string }) =
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, signUp, signInWithOAuth, user, userRole, getDashboardPath, fetchUserRole } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
   // Sign In State
@@ -101,6 +106,9 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("student");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [selectedCollege, setSelectedCollege] = useState<string>("");
+  const [collegeCategoryFilter, setCollegeCategoryFilter] = useState<CollegeCategory | "all">("all");
+  const [collegeSearchOpen, setCollegeSearchOpen] = useState(false);
 
   // Password validation
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
@@ -175,8 +183,18 @@ export default function Auth() {
       return;
     }
 
+    // Validate college selection for non-admin roles
+    if (role !== "admin" && !selectedCollege) {
+      toast({
+        title: "College Required",
+        description: "Please select your college.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role);
+    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role, selectedCollege);
     setLoading(false);
     if (!error && data?.user) {
       // Wait for role to be fetched
@@ -358,7 +376,13 @@ export default function Auth() {
 
                 <div className="space-y-2">
                   <Label htmlFor="role" className="text-gray-900">I am a...</Label>
-                  <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
+                  <Select value={role} onValueChange={(value) => {
+                    setRole(value as UserRole);
+                    // Reset college selection when role changes
+                    if (value === "admin") {
+                      setSelectedCollege("");
+                    }
+                  }}>
                     <SelectTrigger id="role" className="border-gray-300 focus:border-[#0066FF]">
                       <SelectValue />
                     </SelectTrigger>
@@ -370,6 +394,102 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* College Selection - Required for non-admin roles */}
+                {role !== "admin" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="college" className="text-gray-900">
+                      {role === "college" ? "College (Cannot be changed later)" : "College"}
+                    </Label>
+                    <div className="space-y-2">
+                      {/* Category Filter */}
+                      <Select
+                        value={collegeCategoryFilter}
+                        onValueChange={(value) => setCollegeCategoryFilter(value as CollegeCategory | "all")}
+                      >
+                        <SelectTrigger className="border-gray-300 focus:border-[#0066FF]">
+                          <SelectValue placeholder="Filter by category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {collegeCategories.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* College Search Combobox */}
+                      <Popover open={collegeSearchOpen} onOpenChange={setCollegeSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={collegeSearchOpen}
+                            className="w-full justify-between border-gray-300 focus:border-[#0066FF]"
+                          >
+                            {selectedCollege
+                              ? getCollegeById(selectedCollege)?.name || "Select college..."
+                              : "Select college..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search college..." />
+                            <CommandList>
+                              <CommandEmpty>No college found.</CommandEmpty>
+                              {(() => {
+                                const filteredColleges = collegeCategoryFilter === "all"
+                                  ? colleges
+                                  : getCollegesByCategory(collegeCategoryFilter);
+                                
+                                // Group by category for display
+                                const grouped = filteredColleges.reduce((acc, college) => {
+                                  if (!acc[college.category]) {
+                                    acc[college.category] = [];
+                                  }
+                                  acc[college.category].push(college);
+                                  return acc;
+                                }, {} as Record<CollegeCategory, typeof colleges>);
+                                
+                                return Object.entries(grouped).map(([category, categoryColleges]) => {
+                                  const categoryLabel = collegeCategories.find(c => c.value === category)?.label || category;
+                                  return (
+                                    <CommandGroup key={category} heading={categoryLabel}>
+                                      {categoryColleges.map((college) => (
+                                        <CommandItem
+                                          key={college.id}
+                                          value={`${college.name} ${college.location} ${college.state}`}
+                                          onSelect={() => {
+                                            setSelectedCollege(college.id);
+                                            setCollegeSearchOpen(false);
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              selectedCollege === college.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          <div className="flex flex-col">
+                                            <span>{college.name}</span>
+                                            <span className="text-xs text-gray-500">{college.location}, {college.state}</span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  );
+                                });
+                              })()}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                )}
 
                 {/* Terms and Conditions Checkbox */}
                 <div className="flex items-start gap-3 pt-2">
@@ -411,7 +531,7 @@ export default function Auth() {
                 <Button 
                   type="submit" 
                   className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms}
+                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms || (role !== "admin" && !selectedCollege)}
                 >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>

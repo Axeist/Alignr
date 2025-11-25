@@ -26,6 +26,7 @@ import CareerReport from "./pages/student/CareerReport";
 
 // Alumni Pages
 import AlumniDashboard from "./pages/alumni/Dashboard";
+import AlumniProfile from "./pages/alumni/Profile";
 import PostJob from "./pages/alumni/PostJob";
 import AlumniJobs from "./pages/alumni/Jobs";
 import AlumniApplications from "./pages/alumni/Applications";
@@ -33,6 +34,7 @@ import Candidates from "./pages/alumni/Candidates";
 
 // College Pages
 import CollegeDashboard from "./pages/college/Dashboard";
+import CollegeProfile from "./pages/college/Profile";
 import Students from "./pages/college/Students";
 import PlacementDrives from "./pages/college/Drives";
 import CollegeEvents from "./pages/college/Events";
@@ -76,6 +78,7 @@ const App = () => (
           
           {/* Alumni Routes */}
           <Route path="/alumni/dashboard" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniDashboard /></ProtectedRoute>} />
+          <Route path="/alumni/profile" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniProfile /></ProtectedRoute>} />
           <Route path="/alumni/post-job" element={<ProtectedRoute allowedRoles={["alumni"]}><PostJob /></ProtectedRoute>} />
           <Route path="/alumni/jobs" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniJobs /></ProtectedRoute>} />
           <Route path="/alumni/applications" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniApplications /></ProtectedRoute>} />
@@ -83,6 +86,7 @@ const App = () => (
           
           {/* College Routes */}
           <Route path="/college/dashboard" element={<ProtectedRoute allowedRoles={["college"]}><CollegeDashboard /></ProtectedRoute>} />
+          <Route path="/college/profile" element={<ProtectedRoute allowedRoles={["college"]}><CollegeProfile /></ProtectedRoute>} />
           <Route path="/college/students" element={<ProtectedRoute allowedRoles={["college"]}><Students /></ProtectedRoute>} />
           <Route path="/college/drives" element={<ProtectedRoute allowedRoles={["college"]}><PlacementDrives /></ProtectedRoute>} />
           <Route path="/college/events" element={<ProtectedRoute allowedRoles={["college"]}><CollegeEvents /></ProtectedRoute>} />
