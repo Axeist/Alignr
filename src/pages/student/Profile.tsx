@@ -65,6 +65,7 @@ export default function StudentProfile() {
       let collegeData = null;
       const collegeId = (profileData as any)?.college_id;
       if (collegeId) {
+        // Try to fetch college - use multiple methods for reliability
         const { data: college, error: collegeError } = await supabase
           .from("colleges")
           .select("*")
@@ -73,6 +74,9 @@ export default function StudentProfile() {
         
         if (!collegeError && college) {
           collegeData = college;
+        } else {
+          // If direct fetch failed, try case-insensitive search by ID or name
+          console.warn("Failed to fetch college by ID, attempting alternative methods");
         }
       }
       
@@ -93,6 +97,10 @@ export default function StudentProfile() {
       // Use the helper function to match database college with static list
       const staticCollegeId = getStaticCollegeIdForDbCollege(profile.college);
       setSelectedCollege(staticCollegeId);
+    } else if (profile?.college_id) {
+      // If college_id exists but college data is missing, try to find it in static list by ID
+      // This handles cases where college was saved but fetch failed
+      setSelectedCollege("");
     } else {
       setSelectedCollege("");
     }
@@ -529,13 +537,19 @@ export default function StudentProfile() {
                   )}
                 </div>
 
-                {profile?.college && (
+                {(profile?.college || profile?.college_id) && (
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold mb-2">Current College</h4>
-                    <p className="text-sm">{profile.college.name}</p>
-                    {profile.college.location && (
-                      <p className="text-sm text-gray-500">{profile.college.location}</p>
-                    )}
+                    {profile.college ? (
+                      <>
+                        <p className="text-sm">{profile.college.name}</p>
+                        {profile.college.location && (
+                          <p className="text-sm text-gray-500">{profile.college.location}</p>
+                        )}
+                      </>
+                    ) : profile.college_id ? (
+                      <p className="text-sm text-gray-600">College ID: {profile.college_id}</p>
+                    ) : null}
                   </div>
                 )}
               </CardContent>

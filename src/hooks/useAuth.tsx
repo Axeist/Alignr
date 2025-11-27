@@ -89,32 +89,46 @@ export function useAuth() {
           const college = getCollegeById(collegeId);
           
           if (college) {
-            // Check if college already exists in database
-            const { data: existingCollege, error: collegeSearchError } = await supabase
-              .from("colleges")
-              .select("id")
-              .eq("name", college.name)
-              .single();
+            // Use find_or_create_college RPC function for consistency
+            // This handles case-insensitive matching and ensures we get the same college_id
+            const { data: rpcCollegeId, error: rpcError } = await (supabase.rpc as any)(
+              'find_or_create_college',
+              {
+                p_name: college.name,
+                p_location: college.location,
+              }
+            );
 
-            if (existingCollege) {
-              collegeDbId = existingCollege.id;
+            if (!rpcError && rpcCollegeId) {
+              collegeDbId = rpcCollegeId as string;
             } else {
-              // Create college if it doesn't exist
-              const { data: newCollege, error: collegeCreateError } = await supabase
+              // Fallback: try case-insensitive search
+              const { data: existingCollege } = await supabase
                 .from("colleges")
-                .insert({
-                  name: college.name,
-                  location: college.location,
-                  website: null,
-                })
                 .select("id")
-                .single();
+                .ilike("name", college.name)
+                .maybeSingle();
 
-              if (collegeCreateError) {
-                console.error("Error creating college:", collegeCreateError);
-                // Continue without college if creation fails
-              } else if (newCollege) {
-                collegeDbId = newCollege.id;
+              if (existingCollege) {
+                collegeDbId = existingCollege.id;
+              } else {
+                // Create college if it doesn't exist
+                const { data: newCollege, error: collegeCreateError } = await supabase
+                  .from("colleges")
+                  .insert({
+                    name: college.name,
+                    location: college.location,
+                    website: null,
+                  })
+                  .select("id")
+                  .single();
+
+                if (collegeCreateError) {
+                  console.error("Error creating college:", collegeCreateError);
+                  // Continue without college if creation fails
+                } else if (newCollege) {
+                  collegeDbId = newCollege.id;
+                }
               }
             }
 
@@ -167,10 +181,24 @@ export function useAuth() {
         } else {
           // Update profile with college_id if function succeeded
           if (collegeDbId) {
-            await supabase
+            const { error: updateError } = await supabase
               .from("profiles")
               .update({ college_id: collegeDbId })
               .eq("user_id", data.user.id);
+            
+            if (updateError) {
+              console.error("Error updating profile with college_id:", updateError);
+              // Try alternative method using RPC function
+              try {
+                await supabase.rpc("update_profile_college", {
+                  p_user_id: data.user.id,
+                  p_college_id: collegeDbId,
+                  p_role: role,
+                });
+              } catch (rpcError) {
+                console.error("Error updating college via RPC:", rpcError);
+              }
+            }
           }
         }
 

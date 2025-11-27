@@ -49,6 +49,20 @@ export default function CollegeProfile() {
         .eq("user_id", user.id)
         .single();
       if (error) throw error;
+      
+      // If college_id exists but colleges join failed, fetch college separately
+      if (data?.college_id && !data?.colleges) {
+        const { data: collegeData } = await supabase
+          .from("colleges")
+          .select("*")
+          .eq("id", data.college_id)
+          .single();
+        
+        if (collegeData) {
+          return { ...data, colleges: collegeData };
+        }
+      }
+      
       return data;
     },
     enabled: !!user,
@@ -358,24 +372,30 @@ export default function CollegeProfile() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {profile?.colleges ? (
+                {profile?.colleges || profile?.college_id ? (
                   <>
                     <div className="p-4 bg-gray-50 rounded-lg space-y-2">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-gray-500" />
                         <h4 className="font-semibold">Current College</h4>
                       </div>
-                      <p className="text-lg">{profile.colleges.name}</p>
-                      {profile.colleges.location && (
-                        <p className="text-sm text-gray-500">{profile.colleges.location}</p>
-                      )}
-                      {profile.colleges.website && (
-                        <p className="text-sm text-blue-600">
-                          <a href={profile.colleges.website} target="_blank" rel="noopener noreferrer">
-                            {profile.colleges.website}
-                          </a>
-                        </p>
-                      )}
+                      {profile.colleges ? (
+                        <>
+                          <p className="text-lg">{profile.colleges.name}</p>
+                          {profile.colleges.location && (
+                            <p className="text-sm text-gray-500">{profile.colleges.location}</p>
+                          )}
+                          {profile.colleges.website && (
+                            <p className="text-sm text-blue-600">
+                              <a href={profile.colleges.website} target="_blank" rel="noopener noreferrer">
+                                {profile.colleges.website}
+                              </a>
+                            </p>
+                          )}
+                        </>
+                      ) : profile.college_id ? (
+                        <p className="text-lg text-gray-600">College ID: {profile.college_id}</p>
+                      ) : null}
                       {profile.college_changed_count && profile.college_changed_count > 0 && (
                         <Alert className="mt-2">
                           <AlertCircle className="h-4 w-4" />
