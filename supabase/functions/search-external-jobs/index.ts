@@ -130,31 +130,45 @@ async function searchJobsOnPlatform(
     const jobs = data.jobs_results || [];
 
     // Helper function to safely convert date to ISO string
-    const safeDateToISO = (dateValue: string | undefined | null): string | null => {
+    const safeDateToISO = (dateValue: string | Date | undefined | null): string | null => {
       if (!dateValue) return null;
       try {
-        const date = new Date(dateValue);
+        // Handle both string and Date objects
+        const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
         // Check if date is valid
         if (isNaN(date.getTime())) {
           return null;
         }
         return date.toISOString();
       } catch (error) {
-        console.warn("Invalid date value:", dateValue);
+        console.warn("Invalid date value:", dateValue, error);
         return null;
       }
     };
 
     return jobs.map((job: any) => {
-      // Safely handle posted_date
-      let validPostedDate: string | null = safeDateToISO(job.detected_extensions?.posted_at);
-      if (!validPostedDate) {
-        try {
-          validPostedDate = new Date().toISOString();
-        } catch (e) {
-          console.warn("Failed to create fallback date in searchJobsOnPlatform:", e);
-          validPostedDate = null;
+      // Safely handle posted_date - try multiple possible date fields
+      let validPostedDate: string | null = null;
+      
+      // Try different possible date fields from the API response
+      const possibleDateFields = [
+        job.detected_extensions?.posted_at,
+        job.posted_at,
+        job.posted_date,
+        job.date_posted,
+      ];
+      
+      for (const dateField of possibleDateFields) {
+        if (dateField) {
+          validPostedDate = safeDateToISO(dateField);
+          if (validPostedDate) break;
         }
+      }
+      
+      // Only use fallback if we truly need a date (for database storage)
+      // For API responses, null is acceptable
+      if (!validPostedDate) {
+        validPostedDate = null; // Don't create fake dates
       }
 
       return {
@@ -169,7 +183,7 @@ async function searchJobsOnPlatform(
         source_platform: "google_jobs", // SerpAPI uses Google Jobs which aggregates from multiple sources
         external_url: job.apply_options?.[0]?.link || job.link || "",
         external_job_id: job.job_id || `job_${Date.now()}_${Math.random()}`,
-        posted_date: validPostedDate,
+        posted_date: validPostedDate, // Always null or valid ISO string
       };
     });
   } catch (error) {
@@ -318,28 +332,12 @@ serve(async (req) => {
       index === self.findIndex((j) => j.external_url === job.external_url)
     );
 
-    // Calculate match scores (batch process, but limit to top 20 to save tokens)
-    const jobsToScore = uniqueJobs.slice(0, 20);
-    const jobsWithScores = await Promise.all(
-      jobsToScore.map(async (job) => {
-        const matchData = await calculateMatchScore(job, resume);
-        return {
-          ...job,
-          match_score: matchData.match_score,
-          matched_skills: matchData.matched_skills,
-          missing_skills: matchData.missing_skills,
-        };
-      })
-    );
-
-    // Sort by match score
-    jobsWithScores.sort((a, b) => b.match_score - a.match_score);
-
-    // Helper function to safely convert date to ISO string
-    const safeDateToISO = (dateValue: string | undefined | null): string | null => {
+    // Helper function to safely convert date to ISO string (defined early for reuse)
+    const safeDateToISO = (dateValue: string | Date | undefined | null): string | null => {
       if (!dateValue) return null;
       try {
-        const date = new Date(dateValue);
+        // Handle both string and Date objects
+        const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
         // Check if date is valid
         if (isNaN(date.getTime())) {
           return null;
@@ -351,39 +349,67 @@ serve(async (req) => {
       }
     };
 
+    // Helper to ensure we always have a valid date string for responses
+    const ensureValidDate = (dateValue: string | Date | undefined | null): string | null => {
+      const isoDate = safeDateToISO(dateValue);
+      if (isoDate) return isoDate;
+      // Return current date as fallback only if we truly need a date
+      try {
+        const fallbackDate = new Date();
+        // Double-check the fallback date is valid
+        if (isNaN(fallbackDate.getTime())) {
+          console.warn("Fallback date is invalid");
+          return null;
+        }
+        return fallbackDate.toISOString();
+      } catch (e) {
+        console.warn("Failed to create fallback date:", e);
+        return null;
+      }
+    };
+
+    // Calculate match scores (batch process, but limit to top 20 to save tokens)
+    const jobsToScore = uniqueJobs.slice(0, 20);
+    const jobsWithScores = await Promise.all(
+      jobsToScore.map(async (job) => {
+        const matchData = await calculateMatchScore(job, resume);
+        // Ensure posted_date is always a valid ISO string or null
+        const validPostedDate = job.posted_date ? safeDateToISO(job.posted_date) : null;
+        
+        return {
+          ...job,
+          match_score: matchData.match_score,
+          matched_skills: matchData.matched_skills,
+          missing_skills: matchData.missing_skills,
+          posted_date: validPostedDate, // Ensure it's always valid or null
+        };
+      })
+    );
+
+    // Sort by match score
+    jobsWithScores.sort((a, b) => b.match_score - a.match_score);
+
     // Save top jobs to database for tracking
     const jobsToSave = jobsWithScores.slice(0, limit).map((job) => {
       // Ensure posted_date is always valid - use safeDateToISO and provide fallback
-      let validPostedDate: string | null = null;
-      if (job.posted_date) {
-        validPostedDate = safeDateToISO(job.posted_date);
-      }
-      // If still null, use current date as fallback
-      if (!validPostedDate) {
-        try {
-          validPostedDate = new Date().toISOString();
-        } catch (e) {
-          console.warn("Failed to create fallback date:", e);
-          validPostedDate = null;
-        }
-      }
+      const validPostedDate = ensureValidDate(job.posted_date);
 
       return {
         user_id,
-        title: job.title,
-        company_name: job.company_name,
-        description: job.description.substring(0, 1000), // Limit description length
-        location: job.location,
-        job_type: job.job_type,
-        salary_range: job.salary_range,
-        experience_level: job.experience_level,
+        title: job.title || "Untitled",
+        company_name: job.company_name || "Unknown",
+        description: (job.description || "").substring(0, 1000), // Limit description length
+        location: job.location || "Location not specified",
+        job_type: job.job_type || null,
+        salary_range: job.salary_range || null,
+        experience_level: job.experience_level || null,
         skills_required: job.skills_required || [],
-        source_platform: job.source_platform,
-        external_url: job.external_url,
-        external_job_id: job.external_job_id,
-        match_score: job.match_score,
-        matched_skills: job.matched_skills,
-        missing_skills: job.missing_skills,
+        source_platform: job.source_platform || "unknown",
+        external_url: job.external_url || "",
+        external_job_id: job.external_job_id || null,
+        match_score: job.match_score || 0,
+        matched_skills: job.matched_skills || [],
+        missing_skills: job.missing_skills || [],
         posted_date: validPostedDate,
       };
     });
@@ -396,10 +422,16 @@ serve(async (req) => {
       });
     }
 
+    // Sanitize jobs for response - ensure all dates are valid strings
+    const sanitizedJobs = jobsWithScores.slice(0, limit).map((job) => ({
+      ...job,
+      posted_date: job.posted_date ? safeDateToISO(job.posted_date) : null,
+    }));
+
     return new Response(
       JSON.stringify({
         success: true,
-        jobs: jobsWithScores.slice(0, limit),
+        jobs: sanitizedJobs,
         total: jobsWithScores.length,
         suggested_roles: searchQueries,
       }),
