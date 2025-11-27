@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,9 +31,9 @@ serve(async (req) => {
       );
     }
 
-    if (!GEMINI_API_KEY) {
+    if (!GROQ_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        JSON.stringify({ error: "GROQ_API_KEY not configured" }),
         { 
           status: 500, 
           headers: { 
@@ -80,29 +80,37 @@ serve(async (req) => {
 Quiz Responses: ${JSON.stringify(quiz_responses)}
 User Profile: ${profile?.full_name || "Student"}, ${profile?.department || "N/A"}, ${profile?.year || "N/A"}`;
 
-    const geminiResponse = await fetch(GEMINI_API_URL, {
+    const groqResponse = await fetch(GROQ_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: "application/json"
-        }
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that returns only valid JSON. Always return valid JSON objects without markdown formatting."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
       })
     });
 
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.statusText}`);
+    if (!groqResponse.ok) {
+      throw new Error(`Groq API error: ${groqResponse.statusText}`);
     }
 
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const assessment = JSON.parse(responseText);
+    const groqData = await groqResponse.json();
+    const responseText = groqData.choices?.[0]?.message?.content || "{}";
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const assessment = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
 
     // Calculate quiz score (completeness + AI assessment)
     const responseCount = Object.keys(quiz_responses).length;
