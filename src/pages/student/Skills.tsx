@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +38,7 @@ export default function SkillPath() {
   ];
 
   // Fetch skill paths
-  const { data: skillPath, refetch: refetchSkillPath, isLoading: isLoadingSkillPath } = useQuery({
+  const { data: skillPath, refetch: refetchSkillPath, isLoading: isLoadingSkillPath, isRefetching } = useQuery({
     queryKey: ["skill-path", user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -46,23 +47,19 @@ export default function SkillPath() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
       
       if (error) {
-        // Log error for debugging but don't throw on PGRST116 (no rows)
-        if (error.code !== "PGRST116") {
-          console.error("Error fetching skill path:", error);
-          throw error;
-        }
-        return null;
+        console.error("Error fetching skill path:", error);
+        throw error;
       }
       
-      return data || null;
+      return data && data.length > 0 ? data[0] : null;
     },
     enabled: !!user,
     refetchOnWindowFocus: true,
-    refetchOnMount: true
+    refetchOnMount: true,
+    retry: 2
   });
 
   // Generate skill path mutation
@@ -80,13 +77,30 @@ export default function SkillPath() {
       if (error) throw error;
       return data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      console.log("Skill path generation response:", data);
       toast.success("Skill path generated successfully!");
-      // Invalidate and refetch the query
-      queryClient.invalidateQueries({ queryKey: ["skill-path", user?.id] });
-      // Wait a bit for the database to update, then refetch
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await refetchSkillPath();
+      
+      // Immediately invalidate the query cache
+      await queryClient.invalidateQueries({ queryKey: ["skill-path", user?.id] });
+      
+      // Wait for database to be ready, then force refetch
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Force refetch with error handling
+      try {
+        const result = await refetchSkillPath();
+        console.log("Refetch result:", result);
+        if (!result.data) {
+          console.warn("Refetch returned no data, retrying...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await refetchSkillPath();
+        }
+      } catch (refetchError) {
+        console.error("Error refetching skill path:", refetchError);
+        // Still show success, user can manually refresh
+        toast.info("Skill path generated! If you don't see it, please refresh the page.");
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to generate skill path");
@@ -98,6 +112,21 @@ export default function SkillPath() {
     ? skillPath.milestones 
     : (skillPath?.milestones ? [skillPath.milestones] : []);
   const progress = skillPath?.progress_percentage || 0;
+
+  // Debug: Log when skillPath changes
+  useEffect(() => {
+    if (skillPath) {
+      console.log("✅ Skill path loaded:", {
+        id: skillPath.id,
+        target_role: skillPath.target_role,
+        milestones_count: milestones.length,
+        progress: progress,
+        has_milestones: milestones.length > 0
+      });
+    } else {
+      console.log("❌ No skill path found");
+    }
+  }, [skillPath, milestones.length, progress]);
 
   return (
     <DashboardLayout navItems={navItems}>
@@ -111,7 +140,7 @@ export default function SkillPath() {
           <p className="text-gray-400">Personalized learning path to your target role</p>
         </motion.div>
 
-        {generatePathMutation.isPending || isLoadingSkillPath ? (
+        {generatePathMutation.isPending || (isLoadingSkillPath && !skillPath) || isRefetching ? (
           <Card className="glass-hover">
             <CardContent className="pt-6 text-center py-12">
               <Target className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
@@ -131,18 +160,31 @@ export default function SkillPath() {
               <p className="text-gray-400 mb-6">
                 Generate a personalized learning path based on your target role
               </p>
-              <Button
-                onClick={() => {
-                  const targetRole = prompt("Enter your target role (e.g., Software Engineer):");
-                  if (targetRole) {
-                    generatePathMutation.mutate(targetRole);
-                  }
-                }}
-                className="gradient-primary"
-                disabled={generatePathMutation.isPending}
-              >
-                {generatePathMutation.isPending ? "Generating..." : "Generate Skill Path"}
-              </Button>
+              <div className="flex flex-col gap-3 items-center">
+                <Button
+                  onClick={() => {
+                    const targetRole = prompt("Enter your target role (e.g., Software Engineer):");
+                    if (targetRole) {
+                      generatePathMutation.mutate(targetRole);
+                    }
+                  }}
+                  className="gradient-primary"
+                  disabled={generatePathMutation.isPending}
+                >
+                  {generatePathMutation.isPending ? "Generating..." : "Generate Skill Path"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    refetchSkillPath();
+                    toast.info("Refreshing skill path...");
+                  }}
+                  disabled={isLoadingSkillPath || isRefetching}
+                >
+                  {isLoadingSkillPath || isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
