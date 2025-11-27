@@ -11,20 +11,19 @@
 2. Click **"Source"** tab
 3. Select all existing content and **DELETE** it
 4. **PASTE** the copied HTML
-5. Set **Subject** field to: 
-   ```
-   Confirm Your Signup - Alignr
-   ```
-   *(Also available in `SUBJECT_LINE.txt`)*
+5. Set **Subject** to: `Confirm Your Signup - Alignr`
 6. Click **"Save changes"** ✅
 
 ### Step 3: Configure Redirect
 1. Go to **Authentication** → **URL Configuration**
-2. Set **Site URL**: Your production domain (e.g., `https://yourdomain.com`)
+2. Set **Site URL**: `https://alignr.cuephoria.in`
 3. Add **Redirect URLs**:
-   - `https://yourdomain.com/auth`
-   - `https://yourdomain.com/auth/callback`
+   - `https://alignr.cuephoria.in/auth`
+   - `https://alignr.cuephoria.in/auth/callback`
+   - `https://alignr.cuephoria.in/*`
 4. Save ✅
+
+**Result:** After clicking the confirmation link, users will be redirected to `https://alignr.cuephoria.in/auth` to sign in.
 
 ## ✨ What You Get
 

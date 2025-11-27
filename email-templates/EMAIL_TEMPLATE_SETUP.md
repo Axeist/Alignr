@@ -20,8 +20,6 @@ In the **Subject** field, enter:
 Confirm Your Signup - Alignr
 ```
 
-**Note:** This subject line is also saved in `SUBJECT_LINE.txt` for easy copy-paste.
-
 ### Step 3: Update the Email Body
 1. Click on the **"Source"** tab in the email body editor
 2. Copy the entire contents from `confirm-signup.html` or `confirm-signup-simple.html`
@@ -29,14 +27,16 @@ Confirm Your Signup - Alignr
 4. Click **"Save changes"**
 
 ### Step 4: Configure Redirect URL (Important!)
-To ensure users are redirected to the sign-in page after confirmation:
+To ensure users are redirected to `alignr.cuephoria.in` after confirmation:
 
 1. Go to **Authentication** → **URL Configuration**
-2. Set the **Site URL** to your production domain (e.g., `https://yourdomain.com`)
+2. Set the **Site URL** to: `https://alignr.cuephoria.in`
 3. Add to **Redirect URLs**:
-   - `https://yourdomain.com/auth`
-   - `https://yourdomain.com/auth/callback`
-   - `https://yourdomain.com/*` (wildcard for all routes)
+   - `https://alignr.cuephoria.in/auth`
+   - `https://alignr.cuephoria.in/auth/callback`
+   - `https://alignr.cuephoria.in/*` (wildcard for all routes)
+
+**Note:** The `{{ .ConfirmationURL }}` variable in the email template will automatically include the redirect to your Site URL. After clicking the confirmation link, users will be redirected to `https://alignr.cuephoria.in/auth` to sign in.
 
 ### Step 5: Test the Email
 1. Sign up with a test email address
@@ -82,7 +82,12 @@ Replace `https://iili.io/fqdZCfn.png` with your logo URL if needed.
 - Dark Green: `#B8E600`
 
 ### Change Redirect Behavior
-The `{{ .ConfirmationURL }}` automatically includes the redirect URL configured in Supabase. Make sure your redirect URLs are properly configured in Step 4.
+The `{{ .ConfirmationURL }}` automatically includes the redirect URL configured in Supabase. The confirmation link will redirect users to your **Site URL** (configured in Step 4). 
+
+**For `alignr.cuephoria.in`:** 
+- Set Site URL to `https://alignr.cuephoria.in`
+- Users will be redirected to `https://alignr.cuephoria.in/auth` after clicking the confirmation link
+- Make sure redirect URLs include `https://alignr.cuephoria.in/auth` and `https://alignr.cuephoria.in/auth/callback`
 
 ## Email Client Compatibility
 
@@ -97,9 +102,10 @@ The `{{ .ConfirmationURL }}` automatically includes the redirect URL configured 
 - Check spam folder
 
 ### Redirect not working?
-- Verify redirect URLs in Supabase dashboard
-- Ensure Site URL is set correctly
-- Check that your frontend handles the callback route
+- Verify redirect URLs in Supabase dashboard include `https://alignr.cuephoria.in/auth` and `https://alignr.cuephoria.in/auth/callback`
+- Ensure Site URL is set to `https://alignr.cuephoria.in`
+- Check that your frontend handles the `/auth` route correctly
+- The confirmation link should redirect to `https://alignr.cuephoria.in/auth` after email confirmation
 
 ### Logo not showing?
 - Verify the logo URL is accessible
