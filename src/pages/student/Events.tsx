@@ -56,24 +56,24 @@ export default function Events() {
       let query = supabase
         .from("college_events")
         .select("*, colleges(name)")
-        .gte("event_date", new Date().toISOString())
+        .gte("event_date", new Date().toISOString());
+
+      // Filter events: show events from student's college OR events without college restriction (college_id is null)
+      if (profile?.college_id) {
+        // If student has a college_id, show events for their college OR open events (null college_id)
+        query = query.or(`college_id.is.null,college_id.eq.${profile.college_id}`);
+      } else {
+        // If student doesn't have a college_id, only show open events
+        query = query.is("college_id", null);
+      }
+
+      const { data, error } = await query
         .order("event_date", { ascending: true });
 
-      // Filter by event type if specified (if events table has event_type column)
-      // For now, we'll fetch all upcoming events
-
-      const { data, error } = await query;
       if (error) throw error;
-      
-      // Filter events: show college events or all open events
-      const filtered = (data || []).filter((event: any) => {
-        // Show events from student's college or events without college restriction
-        return !event.college_id || event.college_id === profile?.college_id;
-      });
-
-      return filtered;
+      return data || [];
     },
-    enabled: !!user,
+    enabled: !!user && profile !== undefined,
   });
 
   const filteredEvents = events?.filter((event: any) =>
