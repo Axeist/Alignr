@@ -122,12 +122,20 @@ Gaps: ${gapsStr}`;
     const collegeId = profile?.college_id || null;
 
     // Check if skill path already exists for this user
-    const { data: existingPath } = await supabaseClient
+    // Use maybeSingle() to avoid errors when no record exists
+    const { data: existingPath, error: checkError } = await supabaseClient
       .from("skill_paths")
       .select("id")
       .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    // Ignore PGRST116 error (no rows returned) - that's expected when no path exists
+    if (checkError && checkError.code !== "PGRST116") {
+      console.error("Error checking for existing skill path:", checkError);
+      throw new Error(`Failed to check for existing skill path: ${checkError.message}`);
+    }
 
     const skillPathData = {
       user_id,
@@ -142,9 +150,9 @@ Gaps: ${gapsStr}`;
     };
 
     let skillPath;
-    let upsertError;
+    let saveError;
 
-    if (existingPath) {
+    if (existingPath && existingPath.id) {
       // Update existing skill path
       const { data, error } = await supabaseClient
         .from("skill_paths")
@@ -153,7 +161,7 @@ Gaps: ${gapsStr}`;
         .select()
         .single();
       skillPath = data;
-      upsertError = error;
+      saveError = error;
     } else {
       // Insert new skill path
       const { data, error } = await supabaseClient
@@ -162,12 +170,17 @@ Gaps: ${gapsStr}`;
         .select()
         .single();
       skillPath = data;
-      upsertError = error;
+      saveError = error;
     }
 
-    if (upsertError) {
-      console.error("Error upserting skill path:", upsertError);
-      throw new Error(`Failed to save skill path: ${upsertError.message}`);
+    if (saveError) {
+      console.error("Error saving skill path:", saveError);
+      throw new Error(`Failed to save skill path: ${saveError.message}`);
+    }
+
+    if (!skillPath) {
+      console.error("Skill path was not saved but no error was returned");
+      throw new Error("Failed to save skill path: No data returned");
     }
 
     return new Response(

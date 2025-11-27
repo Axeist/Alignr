@@ -37,7 +37,7 @@ export default function SkillPath() {
   ];
 
   // Fetch skill paths
-  const { data: skillPath, refetch: refetchSkillPath } = useQuery({
+  const { data: skillPath, refetch: refetchSkillPath, isLoading: isLoadingSkillPath } = useQuery({
     queryKey: ["skill-path", user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -46,11 +46,23 @@ export default function SkillPath() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1);
-      if (error) throw error;
-      return data && data.length > 0 ? data[0] : null;
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) {
+        // Log error for debugging but don't throw on PGRST116 (no rows)
+        if (error.code !== "PGRST116") {
+          console.error("Error fetching skill path:", error);
+          throw error;
+        }
+        return null;
+      }
+      
+      return data || null;
     },
-    enabled: !!user
+    enabled: !!user,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true
   });
 
   // Generate skill path mutation
@@ -70,8 +82,10 @@ export default function SkillPath() {
     },
     onSuccess: async () => {
       toast.success("Skill path generated successfully!");
+      // Invalidate and refetch the query
+      queryClient.invalidateQueries({ queryKey: ["skill-path", user?.id] });
       // Wait a bit for the database to update, then refetch
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await refetchSkillPath();
     },
     onError: (error: any) => {
@@ -97,13 +111,15 @@ export default function SkillPath() {
           <p className="text-gray-400">Personalized learning path to your target role</p>
         </motion.div>
 
-        {generatePathMutation.isPending ? (
+        {generatePathMutation.isPending || isLoadingSkillPath ? (
           <Card className="glass-hover">
             <CardContent className="pt-6 text-center py-12">
               <Target className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
-              <h3 className="text-xl font-semibold mb-2">Generating Skill Path...</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {generatePathMutation.isPending ? "Generating Skill Path..." : "Loading Skill Path..."}
+              </h3>
               <p className="text-gray-400 mb-6">
-                Please wait while we create your personalized learning path
+                Please wait while we {generatePathMutation.isPending ? "create" : "load"} your personalized learning path
               </p>
             </CardContent>
           </Card>

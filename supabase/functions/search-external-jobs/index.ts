@@ -145,20 +145,33 @@ async function searchJobsOnPlatform(
       }
     };
 
-    return jobs.map((job: any) => ({
-      title: job.title || "Job Title",
-      company_name: job.company_name || "Company",
-      description: job.description || "",
-      location: job.location || location || "Location not specified",
-      job_type: job.schedule_type || job.detected_extensions?.schedule_type || "Full-time",
-      salary_range: job.detected_extensions?.salary || job.salary || "",
-      experience_level: job.detected_extensions?.work_type || "",
-      skills_required: [], // Extract from description if needed
-      source_platform: "google_jobs", // SerpAPI uses Google Jobs which aggregates from multiple sources
-      external_url: job.apply_options?.[0]?.link || job.link || "",
-      external_job_id: job.job_id || `job_${Date.now()}_${Math.random()}`,
-      posted_date: safeDateToISO(job.detected_extensions?.posted_at) || new Date().toISOString(),
-    }));
+    return jobs.map((job: any) => {
+      // Safely handle posted_date
+      let validPostedDate: string | null = safeDateToISO(job.detected_extensions?.posted_at);
+      if (!validPostedDate) {
+        try {
+          validPostedDate = new Date().toISOString();
+        } catch (e) {
+          console.warn("Failed to create fallback date in searchJobsOnPlatform:", e);
+          validPostedDate = null;
+        }
+      }
+
+      return {
+        title: job.title || "Job Title",
+        company_name: job.company_name || "Company",
+        description: job.description || "",
+        location: job.location || location || "Location not specified",
+        job_type: job.schedule_type || job.detected_extensions?.schedule_type || "Full-time",
+        salary_range: job.detected_extensions?.salary || job.salary || "",
+        experience_level: job.detected_extensions?.work_type || "",
+        skills_required: [], // Extract from description if needed
+        source_platform: "google_jobs", // SerpAPI uses Google Jobs which aggregates from multiple sources
+        external_url: job.apply_options?.[0]?.link || job.link || "",
+        external_job_id: job.job_id || `job_${Date.now()}_${Math.random()}`,
+        posted_date: validPostedDate,
+      };
+    });
   } catch (error) {
     console.error("SerpAPI search error:", error);
     return [];
@@ -339,24 +352,41 @@ serve(async (req) => {
     };
 
     // Save top jobs to database for tracking
-    const jobsToSave = jobsWithScores.slice(0, limit).map((job) => ({
-      user_id,
-      title: job.title,
-      company_name: job.company_name,
-      description: job.description.substring(0, 1000), // Limit description length
-      location: job.location,
-      job_type: job.job_type,
-      salary_range: job.salary_range,
-      experience_level: job.experience_level,
-      skills_required: job.skills_required || [],
-      source_platform: job.source_platform,
-      external_url: job.external_url,
-      external_job_id: job.external_job_id,
-      match_score: job.match_score,
-      matched_skills: job.matched_skills,
-      missing_skills: job.missing_skills,
-      posted_date: safeDateToISO(job.posted_date),
-    }));
+    const jobsToSave = jobsWithScores.slice(0, limit).map((job) => {
+      // Ensure posted_date is always valid - use safeDateToISO and provide fallback
+      let validPostedDate: string | null = null;
+      if (job.posted_date) {
+        validPostedDate = safeDateToISO(job.posted_date);
+      }
+      // If still null, use current date as fallback
+      if (!validPostedDate) {
+        try {
+          validPostedDate = new Date().toISOString();
+        } catch (e) {
+          console.warn("Failed to create fallback date:", e);
+          validPostedDate = null;
+        }
+      }
+
+      return {
+        user_id,
+        title: job.title,
+        company_name: job.company_name,
+        description: job.description.substring(0, 1000), // Limit description length
+        location: job.location,
+        job_type: job.job_type,
+        salary_range: job.salary_range,
+        experience_level: job.experience_level,
+        skills_required: job.skills_required || [],
+        source_platform: job.source_platform,
+        external_url: job.external_url,
+        external_job_id: job.external_job_id,
+        match_score: job.match_score,
+        matched_skills: job.matched_skills,
+        missing_skills: job.missing_skills,
+        posted_date: validPostedDate,
+      };
+    });
 
     // Upsert jobs (avoid duplicates)
     if (jobsToSave.length > 0) {
