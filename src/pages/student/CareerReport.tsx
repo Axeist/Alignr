@@ -54,7 +54,7 @@ export default function CareerReport() {
     enabled: !!user
   });
 
-  const { data: resume } = useQuery({
+  const { data: resume, refetch: refetchResume } = useQuery({
     queryKey: ["resume-primary", user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -109,12 +109,13 @@ export default function CareerReport() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setReportUrl(data.report_url);
       toast.success("Career report generated successfully!");
       setGenerating(false);
-      // Refresh profile to get updated career score
+      // Refresh profile and resume to get updated scores
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      await refetchResume();
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to generate report");
@@ -299,9 +300,18 @@ export default function CareerReport() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-secondary mb-1">
-                    {resume?.ats_score || 0}
+                    {resume && resume.analysis_result 
+                      ? (resume.ats_score ?? 0)
+                      : resume 
+                        ? "N/A"
+                        : 0}
                   </div>
                   <div className="text-sm text-gray-400">Resume Score</div>
+                  {resume && !resume.analysis_result && (
+                    <div className="text-xs text-yellow-500 mt-1">
+                      Resume not analyzed yet
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

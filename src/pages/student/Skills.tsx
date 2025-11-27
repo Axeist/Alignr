@@ -37,7 +37,7 @@ export default function SkillPath() {
   ];
 
   // Fetch skill paths
-  const { data: skillPath } = useQuery({
+  const { data: skillPath, refetch: refetchSkillPath } = useQuery({
     queryKey: ["skill-path", user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -68,16 +68,21 @@ export default function SkillPath() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Skill path generated successfully!");
-      queryClient.invalidateQueries({ queryKey: ["skill-path", user?.id] });
+      // Wait a bit for the database to update, then refetch
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refetchSkillPath();
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to generate skill path");
     }
   });
 
-  const milestones = skillPath?.milestones || [];
+  // Ensure milestones is always an array, handle JSONB array from database
+  const milestones = Array.isArray(skillPath?.milestones) 
+    ? skillPath.milestones 
+    : (skillPath?.milestones ? [skillPath.milestones] : []);
   const progress = skillPath?.progress_percentage || 0;
 
   return (
@@ -92,7 +97,17 @@ export default function SkillPath() {
           <p className="text-gray-400">Personalized learning path to your target role</p>
         </motion.div>
 
-        {!skillPath ? (
+        {generatePathMutation.isPending ? (
+          <Card className="glass-hover">
+            <CardContent className="pt-6 text-center py-12">
+              <Target className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+              <h3 className="text-xl font-semibold mb-2">Generating Skill Path...</h3>
+              <p className="text-gray-400 mb-6">
+                Please wait while we create your personalized learning path
+              </p>
+            </CardContent>
+          </Card>
+        ) : !skillPath ? (
           <Card className="glass-hover">
             <CardContent className="pt-6 text-center py-12">
               <Target className="h-12 w-12 mx-auto mb-4 text-primary" />

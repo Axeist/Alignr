@@ -121,27 +121,53 @@ Gaps: ${gapsStr}`;
     // Get college_id from profile
     const collegeId = profile?.college_id || null;
 
-    // Upsert skill path
-    const { data: skillPath, error: upsertError } = await supabaseClient
+    // Check if skill path already exists for this user
+    const { data: existingPath } = await supabaseClient
       .from("skill_paths")
-      .upsert({
-        user_id,
-        college_id: collegeId,
-        target_role,
-        skill_gaps: gaps,
-        recommended_courses: pathData.milestones?.flatMap((m: any) => m.courses || []) || [],
-        recommended_projects: pathData.milestones?.flatMap((m: any) => m.projects || []) || [],
-        milestones: pathData.milestones || [],
-        progress_percentage: 0,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "user_id"
-      })
-      .select()
+      .select("id")
+      .eq("user_id", user_id)
+      .limit(1)
       .single();
+
+    const skillPathData = {
+      user_id,
+      college_id: collegeId,
+      target_role,
+      skill_gaps: gaps,
+      recommended_courses: pathData.milestones?.flatMap((m: any) => m.courses || []) || [],
+      recommended_projects: pathData.milestones?.flatMap((m: any) => m.projects || []) || [],
+      milestones: pathData.milestones || [],
+      progress_percentage: 0,
+      updated_at: new Date().toISOString()
+    };
+
+    let skillPath;
+    let upsertError;
+
+    if (existingPath) {
+      // Update existing skill path
+      const { data, error } = await supabaseClient
+        .from("skill_paths")
+        .update(skillPathData)
+        .eq("id", existingPath.id)
+        .select()
+        .single();
+      skillPath = data;
+      upsertError = error;
+    } else {
+      // Insert new skill path
+      const { data, error } = await supabaseClient
+        .from("skill_paths")
+        .insert(skillPathData)
+        .select()
+        .single();
+      skillPath = data;
+      upsertError = error;
+    }
 
     if (upsertError) {
       console.error("Error upserting skill path:", upsertError);
+      throw new Error(`Failed to save skill path: ${upsertError.message}`);
     }
 
     return new Response(

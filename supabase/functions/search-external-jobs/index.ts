@@ -129,6 +129,22 @@ async function searchJobsOnPlatform(
     const data = await response.json();
     const jobs = data.jobs_results || [];
 
+    // Helper function to safely convert date to ISO string
+    const safeDateToISO = (dateValue: string | undefined | null): string | null => {
+      if (!dateValue) return null;
+      try {
+        const date = new Date(dateValue);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return null;
+        }
+        return date.toISOString();
+      } catch (error) {
+        console.warn("Invalid date value:", dateValue);
+        return null;
+      }
+    };
+
     return jobs.map((job: any) => ({
       title: job.title || "Job Title",
       company_name: job.company_name || "Company",
@@ -141,7 +157,7 @@ async function searchJobsOnPlatform(
       source_platform: "google_jobs", // SerpAPI uses Google Jobs which aggregates from multiple sources
       external_url: job.apply_options?.[0]?.link || job.link || "",
       external_job_id: job.job_id || `job_${Date.now()}_${Math.random()}`,
-      posted_date: job.detected_extensions?.posted_at || new Date().toISOString(),
+      posted_date: safeDateToISO(job.detected_extensions?.posted_at) || new Date().toISOString(),
     }));
   } catch (error) {
     console.error("SerpAPI search error:", error);
