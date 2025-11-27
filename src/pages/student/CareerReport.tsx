@@ -59,16 +59,46 @@ export default function CareerReport() {
     queryKey: ["resume-primary", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
+      
+      // First try to get primary resume
+      const { data: primaryData, error: primaryError } = await supabase
         .from("resumes")
         .select("*")
         .eq("user_id", user.id)
         .eq("is_primary", true)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
+        .maybeSingle();
+      
+      if (primaryData) {
+        return primaryData;
+      }
+      
+      // If no primary resume, get the most recent one
+      if (primaryError && primaryError.code === "PGRST116") {
+        const { data: allResumes, error: allError } = await supabase
+          .from("resumes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        if (allError) {
+          console.error("Error fetching resumes:", allError);
+          return null;
+        }
+        
+        return allResumes?.[0] || null;
+      }
+      
+      if (primaryError) {
+        console.error("Error fetching primary resume:", primaryError);
+        return null;
+      }
+      
+      return null;
     },
-    enabled: !!user
+    enabled: !!user,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   const { data: linkedin } = useQuery({
@@ -86,6 +116,13 @@ export default function CareerReport() {
     enabled: !!user
   });
 
+  // Refetch resume data when component mounts
+  useEffect(() => {
+    if (user) {
+      refetchResume();
+    }
+  }, [user?.id, refetchResume]);
+
   // Automatically recalculate career score when resume has ATS score
   useEffect(() => {
     const recalculateCareerScore = async () => {
@@ -101,15 +138,16 @@ export default function CareerReport() {
         await supabase.functions.invoke("calculate-career-score", {
           body: { user_id: user.id }
         });
-        // Refresh profile to get updated career score
+        // Refresh profile and resume to get updated scores
         queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+        await refetchResume();
       } catch (e) {
         console.warn("Failed to recalculate career score:", e);
       }
     };
 
     recalculateCareerScore();
-  }, [user?.id, resume, queryClient]);
+  }, [user?.id, resume, queryClient, refetchResume]);
 
   // Generate report mutation
   const generateReportMutation = useMutation({
