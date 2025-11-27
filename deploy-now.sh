@@ -46,9 +46,12 @@ npx supabase functions deploy generate-career-report --project-ref tkghwmabacbmp
 echo "6️⃣  recommend-jobs..."
 npx supabase functions deploy recommend-jobs --project-ref tkghwmabacbmpfyconyx
 
+echo "7️⃣  calculate-career-score..."
+npx supabase functions deploy calculate-career-score --project-ref tkghwmabacbmpfyconyx
+
 echo ""
 echo "✅ Deployment complete!"
 echo ""
-echo "📊 All 6 functions deployed with Groq (Llama 3.1 8B Instant)"
+echo "📊 All 7 functions deployed with Groq (Llama 3.1 8B Instant)"
 echo "💡 Optimized for minimal token usage"
 

@@ -46,6 +46,9 @@ npx supabase functions deploy recommend-jobs
 echo "7️⃣  Deploying search-external-jobs..."
 npx supabase functions deploy search-external-jobs
 
+echo "8️⃣  Deploying calculate-career-score..."
+npx supabase functions deploy calculate-career-score
+
 echo ""
 echo "✅ All functions deployed successfully!"
 echo ""
@@ -57,6 +60,7 @@ echo "   ✓ generate-skill-path - Personalized learning paths"
 echo "   ✓ generate-career-report - Comprehensive career reports"
 echo "   ✓ recommend-jobs - AI-powered job matching"
 echo "   ✓ search-external-jobs - External job search with SerpAPI"
+echo "   ✓ calculate-career-score - Automatic career score calculation"
 echo ""
 echo "💡 All functions are optimized for minimal token usage"
 echo "🔑 Using Groq (Llama 3.1 8B Instant) model"
