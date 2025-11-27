@@ -141,6 +141,10 @@ export default function ResumeBuilder() {
     onSuccess: () => {
       toast.success("Resume uploaded and analyzed!");
       queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
       setUploading(false);
     },
     onError: (error: any) => {
@@ -214,6 +218,8 @@ export default function ResumeBuilder() {
     onSuccess: () => {
       toast.success("Resume deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
       setDeleteDialogOpen(false);
       setResumeToDelete(null);
       // Reset selected resume if it was deleted
@@ -274,6 +280,8 @@ export default function ResumeBuilder() {
     onSuccess: () => {
       toast.success("All resumes deleted. You can start fresh!");
       queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
       setDeleteAllDialogOpen(false);
       setSelectedResume(null);
     },
@@ -584,11 +592,39 @@ export default function ResumeBuilder() {
               </div>
             )}
 
+            {/* Suggestions for Improvement */}
+            {currentResume && analysis.suggestions && analysis.suggestions.length > 0 && (
+              <Card className="glass-hover border-2 border-primary/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Suggestions for Improvement
+                  </CardTitle>
+                  <CardDescription>Actionable recommendations based on your resume content</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {analysis.suggestions.map((suggestion: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-3 p-3 rounded-lg glass">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-300">{suggestion}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Suggested Target Roles */}
-            {currentResume && analysis.target_roles && (
+            {currentResume && analysis.target_roles && analysis.target_roles.length > 0 && (
               <Card className="glass-hover">
                 <CardHeader>
                   <CardTitle>Suggested Target Roles</CardTitle>
+                  <CardDescription>Roles that match your resume based on actual skills and experience</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -760,6 +796,8 @@ export default function ResumeBuilder() {
                         } else {
                           toast.success("Set as primary resume");
                           queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
                         }
                       }}
                     >

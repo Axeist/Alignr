@@ -119,27 +119,45 @@ serve(async (req) => {
     // Optimize: Limit text to 3000 chars to save tokens
     const resumeContent = text.substring(0, 3000) + (text.length > 3000 ? "..." : "");
     
-    const prompt = `ATS resume analysis. Return JSON only:
+    const prompt = `Analyze this resume for ATS compatibility. Be FACTUAL and ACCURATE. Only suggest improvements based on what is ACTUALLY in the resume. Do NOT make up or hallucinate information.
+
+CRITICAL RULES:
+1. Only extract skills, experience, education, and projects that are EXPLICITLY mentioned in the resume text
+2. Only identify strengths that are CLEARLY demonstrated in the resume content
+3. Only identify gaps based on what is MISSING from the resume (not what you assume should be there)
+4. Suggestions must be SPECIFIC and ACTIONABLE based on actual resume content
+5. Do NOT invent experiences, skills, or achievements that are not in the resume
+6. If information is unclear or missing, state that explicitly rather than guessing
+
+Return JSON only:
 {
-  "ats_score": <0-100>,
-  "keywords_score": <0-100>,
-  "formatting_score": <0-100>,
-  "achievements_score": <0-100>,
-  "action_verbs_score": <0-100>,
+  "ats_score": <0-100 based on: keywords presence, formatting quality, quantified achievements, action verbs>,
+  "keywords_score": <0-100 - count relevant industry keywords found>,
+  "formatting_score": <0-100 - assess structure, clarity, organization>,
+  "achievements_score": <0-100 - count quantified achievements (numbers, percentages, metrics)>,
+  "action_verbs_score": <0-100 - count strong action verbs used>,
   "extracted_data": {
-    "skills": [<skills>],
-    "experience": [<experience>],
-    "education": [<education>],
-    "projects": [<projects>]
+    "skills": [<ONLY skills explicitly listed in resume>],
+    "experience": [<ONLY actual work experience from resume with company names and roles>],
+    "education": [<ONLY actual education listed in resume>],
+    "projects": [<ONLY projects mentioned in resume>]
   },
-  "strengths": [<3-5 strengths>],
-  "gaps": [<3-5 gaps>],
-  "target_roles": [{"name": "<role>", "match": <0-100>}],
-  "suggestions": [<3-5 suggestions>]
+  "strengths": [<3-5 strengths that are CLEARLY visible in the resume content>],
+  "gaps": [<3-5 gaps - things that are MISSING or could be improved, based on what's actually in the resume>],
+  "target_roles": [{"name": "<role>", "match": <0-100 based on actual skills/experience in resume>}],
+  "suggestions": [
+    "<SPECIFIC suggestion based on actual resume content - e.g., 'Add metrics to your [specific role] experience' or 'Include more action verbs in your [specific section]'>",
+    "<Another specific, actionable suggestion based on what's actually in the resume>",
+    "<Another specific suggestion>"
+  ]
 }
 
-Resume: ${resumeContent}
-${target_role ? `Target: ${target_role}` : ""}`;
+Resume Content:
+${resumeContent}
+
+${target_role ? `Target Role: ${target_role}` : ""}
+
+Remember: Be factual. Only suggest what can be improved based on what's actually in the resume. Do not make up information.`;
 
     const groqResponse = await fetch(GROQ_API_URL, {
       method: "POST",
@@ -152,14 +170,14 @@ ${target_role ? `Target: ${target_role}` : ""}`;
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant that returns only valid JSON. Always return valid JSON objects without markdown formatting."
+            content: "You are a professional resume analyst. You analyze resumes FACTUALLY based only on what is explicitly written. You NEVER make up or hallucinate information. You only suggest improvements based on actual content. Always return valid JSON without markdown formatting."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        temperature: 0.7,
+        temperature: 0.3, // Lower temperature for more factual, less creative responses
         response_format: { type: "json_object" }
       })
     });

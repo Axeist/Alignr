@@ -73,21 +73,53 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  // Fetch resume
-  const { data: resume } = useQuery({
+  // Fetch resume - try primary first, then most recent (same logic as Resume page)
+  const { data: resume, refetch: refetchResume } = useQuery({
     queryKey: ["resume-primary", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase
+      
+      // First try to get primary resume
+      const { data: primaryData, error: primaryError } = await supabase
         .from("resumes")
         .select("*")
         .eq("user_id", user.id)
         .eq("is_primary", true)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      
+      if (primaryData) {
+        return primaryData;
+      }
+      
+      // If no primary resume, get the most recent one
+      if (primaryError && primaryError.code === "PGRST116") {
+        const { data: allResumes, error: allError } = await supabase
+          .from("resumes")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        if (allError) {
+          console.error("Error fetching resumes:", allError);
+          return null;
+        }
+        
+        return allResumes?.[0] || null;
+      }
+      
+      if (primaryError) {
+        console.error("Error fetching primary resume:", primaryError);
+        return null;
+      }
+      
+      return null;
     },
-    enabled: !!user
+    enabled: !!user,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always consider data stale to ensure fresh data
+    cacheTime: 0 // Don't cache to always get latest
   });
 
   // Fetch LinkedIn
@@ -210,7 +242,7 @@ export default function StudentDashboard() {
 
   // Calculate insights
   const careerScore = profile?.career_score || 0;
-  const resumeScore = (resume as any)?.ats_score || 0;
+  const resumeScore = resume?.ats_score ?? 0;
   const linkedinScore = linkedin?.completeness_score || 0;
   const quizScore = profile?.quiz_score || 0;
   const totalApplications = applications?.length || 0;
@@ -291,11 +323,42 @@ export default function StudentDashboard() {
         body: { user_id: user.id }
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+        // Also refetch resume to get latest score
+        refetchResume();
       }).catch((e) => {
         console.warn("Failed to calculate career score:", e);
       });
     }
-  }, [resume?.ats_score, linkedin?.completeness_score, quiz, user?.id]);
+  }, [resume?.ats_score, linkedin?.completeness_score, quiz, user?.id, refetchResume, queryClient]);
+
+  // Refetch resume when component mounts or window gains focus
+  useEffect(() => {
+    if (user) {
+      refetchResume();
+      // Also invalidate to force fresh fetch
+      queryClient.invalidateQueries({ queryKey: ["resume-primary", user.id] });
+      queryClient.invalidateQueries({ queryKey: ["resumes", user.id] });
+    }
+  }, [user?.id, refetchResume, queryClient]);
+
+  // Listen for storage events (when resume is updated from another tab/page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ["resume-primary", user.id] });
+        refetchResume();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Also check on focus
+    window.addEventListener('focus', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, [user?.id, refetchResume, queryClient]);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-500";
@@ -665,7 +728,7 @@ export default function StudentDashboard() {
                 </CardContent>
               </Card>
             )}
-          </div>
+        </div>
 
           {/* Right Column - Stats & Activity */}
           <div className="space-y-6">
@@ -758,45 +821,45 @@ export default function StudentDashboard() {
             </Card>
 
             {/* Upcoming Events */}
-            <Card className="glass-hover">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Upcoming Events
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {events && events.length > 0 ? (
-                  events.map((event: any) => (
-                    <div key={event.id} className="p-3 rounded-lg glass">
-                      <div className="font-semibold text-sm">{event.title || event.event_name}</div>
+          <Card className="glass-hover">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                Upcoming Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {events && events.length > 0 ? (
+                events.map((event: any) => (
+                  <div key={event.id} className="p-3 rounded-lg glass">
+                    <div className="font-semibold text-sm">{event.title || event.event_name}</div>
                       <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                         <Clock3 className="h-3 w-3" />
-                        {new Date(event.event_date).toLocaleDateString()}
-                      </div>
+                      {new Date(event.event_date).toLocaleDateString()}
                     </div>
-                  ))
-                ) : (
+                  </div>
+                ))
+              ) : (
                   <div className="text-sm text-gray-400 text-center py-4">
                     No upcoming events
                   </div>
-                )}
-                <Link to="/student/events">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View All Events
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
+              )}
+              <Link to="/student/events">
+                <Button variant="outline" size="sm" className="w-full">
+                  View All Events
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+          
             {/* Quick Links */}
-            <Card className="glass-hover">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+          <Card className="glass-hover">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                   <Star className="h-5 w-5 text-primary" />
                   Quick Links
-                </CardTitle>
-              </CardHeader>
+              </CardTitle>
+            </CardHeader>
               <CardContent className="space-y-2">
                 <Link to="/student/jobs">
                   <Button variant="outline" className="w-full justify-start" size="sm">
@@ -820,12 +883,12 @@ export default function StudentDashboard() {
                   <Button variant="outline" className="w-full justify-start" size="sm">
                     <Trophy className="mr-2 h-4 w-4" />
                     Leaderboard
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
+              </div>
       </div>
     </DashboardLayout>
   );
