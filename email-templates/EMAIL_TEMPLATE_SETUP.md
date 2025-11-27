@@ -1,11 +1,17 @@
-# Email Confirmation Template Setup Guide
+# Email Templates Setup Guide
 
 ## Overview
-This guide will help you set up a professional email confirmation template for Alignr in your Supabase dashboard.
+This guide will help you set up professional email templates for Alignr in your Supabase dashboard.
 
 ## Files Included
+
+### Confirmation Email
 - `confirm-signup.html` - Full-featured version with gradients and advanced styling
 - `confirm-signup-simple.html` - Simplified version for better email client compatibility
+
+### Reset Password Email
+- `reset-password.html` - Full-featured version with gradients and advanced styling
+- `reset-password-simple.html` - Simplified version for better email client compatibility
 
 ## Setup Instructions
 
@@ -112,12 +118,60 @@ The `{{ .ConfirmationURL }}` automatically includes the redirect URL configured 
 - Some email clients block external images by default
 - Consider hosting logo on your own domain
 
+---
+
+# Reset Password Email Template Setup
+
+## Setup Instructions
+
+### Step 1: Access Supabase Email Templates
+1. Go to your Supabase Dashboard
+2. Navigate to **Authentication** → **Email Templates**
+3. Click on **"Reset password"** template
+
+### Step 2: Update the Subject Line
+In the **Subject** field, enter:
+```
+Reset Your Password - Alignr
+```
+
+### Step 3: Update the Email Body
+1. Click on the **"Source"** tab in the email body editor
+2. Copy the entire contents from `reset-password.html` or `reset-password-simple.html`
+3. Paste it into the Supabase email template editor
+4. Click **"Save changes"**
+
+### Step 4: Test the Reset Password Email
+1. Go to the sign-in page and click "Forgot Password"
+2. Enter your email address
+3. Check your inbox for the reset password email
+4. Click the reset link to verify it works
+
+## Reset Password Template Features
+
+### ✅ Included Elements
+- **Logo**: Alignr logo prominently displayed in header
+- **Brand Colors**: Uses your brand colors (#0066FF, #06B6D4, #CAFF00)
+- **Professional Design**: Modern, clean layout with proper spacing
+- **CTA Button**: Clear "Reset Password" button
+- **Alternative Link**: Fallback text link for accessibility
+- **Security Tips**: Helpful tips for creating a strong password
+- **Footer**: Professional footer with branding and contact info
+
+### 🎨 Design Highlights
+- Gradient header matching your brand
+- Neon green CTA button (#CAFF00)
+- Security tips info box
+- Clean typography and spacing
+- Mobile-responsive layout
+
+---
+
 ## Next Steps
 
-After setting up the confirmation email, consider:
-1. Setting up password reset email template
-2. Setting up magic link email template
-3. Customizing other email templates (invite, change email, etc.)
+After setting up the email templates, consider:
+1. Setting up magic link email template
+2. Customizing other email templates (invite, change email, etc.)
 
 ## Support
 
