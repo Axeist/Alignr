@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { 
   TrendingUp, 
   Trophy, 
@@ -17,355 +19,29 @@ import {
   Award,
   Sparkles,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  FileText,
+  Linkedin,
+  Brain,
+  BookOpen,
+  Zap,
+  BarChart3,
+  Clock,
+  Users,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Clock3,
+  TrendingDown,
+  Activity,
+  Star,
+  MessageSquare
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
-
-// Leaderboard Preview Component
-const LeaderboardPreview = ({ collegeId, currentUserId }: { collegeId: string; currentUserId?: string }) => {
-  const { data: leaderboard } = useQuery({
-    queryKey: ["leaderboard", collegeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, department, career_score")
-        .eq("college_id", collegeId)
-        .eq("role", "student")
-        .order("career_score", { ascending: false, nullsFirst: false })
-        .limit(5);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!collegeId
-  });
-
-  if (!leaderboard || leaderboard.length === 0) {
-    return <div className="text-sm text-gray-400 text-center py-4">No leaderboard data yet</div>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {leaderboard.map((student: any, idx: number) => (
-        <div
-          key={student.user_id}
-          className={`flex items-center justify-between p-2 rounded-lg glass ${
-            student.user_id === currentUserId ? "ring-2 ring-primary" : ""
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-              {idx + 1}
-            </div>
-            <div>
-              <div className="text-sm font-semibold">
-                {student.full_name || "Student"}
-                {student.user_id === currentUserId && " (You)"}
-              </div>
-              <div className="text-xs text-gray-400">{student.department || "N/A"}</div>
-            </div>
-          </div>
-          <Badge className="bg-primary/20 text-primary">
-            Score: {student.career_score || 0}
-          </Badge>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// Career Orb Component
-const CareerOrb = ({ score, subScores }: { score: number; subScores: Array<{ label: string; value: number }> }) => {
-  const [hovered, setHovered] = useState(false);
-  const circumference = 2 * Math.PI * 70;
-  const offset = circumference - (score / 100) * circumference;
-  
-  const getColor = () => {
-    if (score < 50) return "#EF4444"; // red
-    if (score < 76) return "#F59E0B"; // yellow
-    return "#10B981"; // green
-  };
-
-  return (
-    <motion.div
-      className="relative"
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      initial={{ scale: 0.9 }}
-      animate={{ scale: 1 }}
-      transition={{ type: "spring", stiffness: 200 }}
-    >
-      <div className="relative w-64 h-64 mx-auto">
-        <svg className="transform -rotate-90 w-64 h-64">
-          <circle
-            cx="128"
-            cy="128"
-            r="70"
-            stroke="rgba(255,255,255,0.1)"
-            strokeWidth="12"
-            fill="none"
-          />
-          <motion.circle
-            cx="128"
-            cy="128"
-            r="70"
-            stroke={getColor()}
-            strokeWidth="12"
-            fill="none"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 1, ease: "easeOut" }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: "spring" }}
-              className="text-5xl font-bold"
-              style={{ color: getColor() }}
-            >
-              {score}
-            </motion.div>
-            <div className="text-sm text-gray-400 mt-1">Career Score</div>
-          </div>
-        </div>
-      </div>
-      
-      {hovered && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute top-full left-1/2 transform -translate-x-1/2 mt-4 glass rounded-lg p-4 min-w-[200px] z-10"
-        >
-          <div className="space-y-2">
-            {subScores.map((sub, idx) => (
-              <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-gray-300">{sub.label}</span>
-                <span className="font-semibold" style={{ color: getColor() }}>
-                  {sub.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
-// Skill Gap Radar Chart
-const SkillGapRadar = ({ resume, skillPath }: { resume: any; skillPath: any }) => {
-  // Extract skills from resume
-  const currentSkills = resume?.extracted_data?.skills || [];
-  const skillGaps = skillPath?.skill_gaps || [];
-  
-  // Calculate skill categories (simplified - you can enhance this)
-  const technicalSkills = currentSkills.filter((s: string) => 
-    ['javascript', 'python', 'java', 'react', 'node', 'sql', 'html', 'css'].some(tech => 
-      s.toLowerCase().includes(tech)
-    )
-  ).length;
-  
-  const data = [
-    { skill: "Technical", current: Math.min(technicalSkills * 10, 100), target: 90 },
-    { skill: "Tools", current: Math.min(currentSkills.length * 5, 100), target: 85 },
-    { skill: "Soft Skills", current: 75, target: 80 },
-    { skill: "Languages", current: Math.min(currentSkills.length * 8, 100), target: 75 },
-    { skill: "Certifications", current: 50, target: 70 }
-  ];
-
-  return (
-    <Card className="glass-hover">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
-          Skill Gap Analysis
-        </CardTitle>
-        <CardDescription>Current skills vs target role requirements</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <RadarChart data={data}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="skill" />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} />
-            <Radar
-              name="Current"
-              dataKey="current"
-              stroke="#6366F1"
-              fill="#6366F1"
-              fillOpacity={0.6}
-            />
-            <Radar
-              name="Target"
-              dataKey="target"
-              stroke="#06B6D4"
-              fill="#06B6D4"
-              fillOpacity={0.3}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Next Best Actions Component
-const NextActions = ({ resume, linkedin, skillPath }: { resume: any; linkedin: any; skillPath: any }) => {
-  const actions = [];
-  
-  // Check resume status
-  if (!resume || resume.ats_score < 70) {
-    actions.push({
-      id: 1,
-      title: "Upload and analyze your resume to improve ATS score",
-      completed: false,
-      priority: "high"
-    });
-  } else if (resume.ats_score < 85) {
-    actions.push({
-      id: 1,
-      title: "Add 2 quantified achievements to your latest role",
-      completed: false,
-      priority: "high"
-    });
-  }
-  
-  // Check LinkedIn status
-  if (!linkedin || linkedin.completeness_score < 70) {
-    actions.push({
-      id: 2,
-      title: "Complete LinkedIn About section",
-      completed: false,
-      priority: "medium"
-    });
-  }
-  
-  // Check skill path
-  if (!skillPath) {
-    actions.push({
-      id: 3,
-      title: "Generate a skill development path for your target role",
-      completed: false,
-      priority: "high"
-    });
-  } else if (skillPath.progress_percentage < 50) {
-    actions.push({
-      id: 3,
-      title: "Complete skill path milestones to improve career score",
-      completed: false,
-      priority: "medium"
-    });
-  }
-  
-  // Always suggest applying to jobs
-  actions.push({
-    id: 4,
-    title: "Apply to 3 matching jobs this week",
-    completed: false,
-    priority: "high"
-  });
-  
-  // If no actions, show a positive message
-  if (actions.length === 0) {
-    actions.push({
-      id: 1,
-      title: "Great job! Keep up the momentum",
-      completed: true,
-      priority: "low"
-    });
-  }
-
-  return (
-    <Card className="glass-hover">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          Next Best Actions
-        </CardTitle>
-        <CardDescription>Priority tasks to improve your profile</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {actions.map((action, idx) => (
-          <motion.div
-            key={action.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className={`flex items-center gap-3 p-3 rounded-lg glass ${
-              action.completed ? "opacity-60" : ""
-            }`}
-          >
-            <div className="flex-shrink-0">
-              {action.completed ? (
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-              ) : (
-                <div className="h-5 w-5 rounded-full border-2 border-primary" />
-              )}
-            </div>
-            <div className="flex-1">
-              <div className={`text-sm ${action.completed ? "line-through" : ""}`}>
-                {action.title}
-              </div>
-            </div>
-            {!action.completed && (
-              <Badge variant={action.priority === "high" ? "destructive" : "secondary"}>
-                {action.priority}
-              </Badge>
-            )}
-          </motion.div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-};
-
-// XP & Level Display
-const XPDisplay = ({ xp, level }: { xp: number; level: string }) => {
-  const xpForNextLevel = 1000;
-  const currentLevelXP = xp % xpForNextLevel;
-  const progress = (currentLevelXP / xpForNextLevel) * 100;
-
-  return (
-    <Card className="glass-hover">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-primary" />
-          XP & Level
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-300">Level {level}</span>
-            <span className="text-primary">{currentLevelXP} / {xpForNextLevel} XP</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-        <div className="text-sm text-gray-400">
-          {xpForNextLevel - currentLevelXP} XP needed for next level
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Badge className="bg-primary/20 text-primary">Resume Master</Badge>
-          <Badge className="bg-secondary/20 text-secondary">Job Seeker</Badge>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 export default function StudentDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [careerScore, setCareerScore] = useState(0);
-  const [xp, setXp] = useState(0);
-  const [level, setLevel] = useState("Beginner");
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -381,7 +57,7 @@ export default function StudentDashboard() {
     { label: "Leaderboard", href: "/student/leaderboard" },
   ];
 
-  // Fetch user profile data
+  // Fetch user profile
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
@@ -397,41 +73,7 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  // Fetch recent applications
-  const { data: applications } = useQuery({
-    queryKey: ["applications", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from("applications")
-        .select("*, jobs(*)")
-        .eq("user_id", user.id)
-        .order("applied_at", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user
-  });
-
-  // Fetch upcoming events
-  const { data: events } = useQuery({
-    queryKey: ["events", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from("college_events")
-        .select("*")
-        .gte("event_date", new Date().toISOString())
-        .order("event_date", { ascending: true })
-        .limit(3);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user
-  });
-
-  // Fetch resume and LinkedIn data for dashboard components
+  // Fetch resume
   const { data: resume } = useQuery({
     queryKey: ["resume-primary", user?.id],
     queryFn: async () => {
@@ -448,6 +90,7 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
+  // Fetch LinkedIn
   const { data: linkedin } = useQuery({
     queryKey: ["linkedin-profile", user?.id],
     queryFn: async () => {
@@ -463,176 +106,726 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
-  const { data: skillPath } = useQuery({
-    queryKey: ["skill-path", user?.id],
+  // Fetch career quiz
+  const { data: quiz } = useQuery({
+    queryKey: ["career-quiz", user?.id],
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase
-        .from("skill_paths")
+        .from("career_quizzes")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1);
-      if (error) throw error;
-      return data && data.length > 0 ? data[0] : null;
+        .limit(1)
+        .maybeSingle();
+      if (error && error.code !== "PGRST116") throw error;
+      return data;
     },
     enabled: !!user
   });
 
-  // Calculate sub-scores for career orb
-  const subScores = [
-    { label: "Resume", value: resume?.ats_score || 0 },
-    { label: "LinkedIn", value: linkedin?.completeness_score || 0 },
-    { label: "Skills Match", value: skillPath?.progress_percentage || 0 },
-    { label: "Activity", value: Math.min((applications?.length || 0) * 10, 100) }
+  // Fetch career paths
+  const { data: careerPaths } = useQuery({
+    queryKey: ["career-paths", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("career_path_suggestions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error && error.code !== "PGRST116") throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
+  // Fetch skills recommendations
+  const { data: skillsRec } = useQuery({
+    queryKey: ["skills-recommendations", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("skills_recommendations")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error && error.code !== "PGRST116") throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
+  // Fetch applications
+  const { data: applications } = useQuery({
+    queryKey: ["applications", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*, jobs(*)")
+        .eq("user_id", user.id)
+        .order("applied_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user
+  });
+
+  // Fetch recent jobs
+  const { data: recentJobs } = useQuery({
+    queryKey: ["recent-jobs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch events
+  const { data: events } = useQuery({
+    queryKey: ["events", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("college_events")
+        .select("*")
+        .gte("event_date", new Date().toISOString())
+        .order("event_date", { ascending: true })
+        .limit(3);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user
+  });
+
+  // Calculate insights
+  const careerScore = profile?.career_score || 0;
+  const resumeScore = (resume as any)?.ats_score || 0;
+  const linkedinScore = linkedin?.completeness_score || 0;
+  const quizScore = profile?.quiz_score || 0;
+  const totalApplications = applications?.length || 0;
+  const pendingApps = applications?.filter((a: any) => a.status === "pending" || a.status === "applied").length || 0;
+  const shortlistedApps = applications?.filter((a: any) => a.status === "shortlisted").length || 0;
+  const rejectedApps = applications?.filter((a: any) => a.status === "rejected").length || 0;
+
+  // Application status chart data
+  const applicationStatusData = [
+    { name: "Pending", value: pendingApps, color: "#F59E0B" },
+    { name: "Shortlisted", value: shortlistedApps, color: "#10B981" },
+    { name: "Rejected", value: rejectedApps, color: "#EF4444" },
+  ].filter(item => item.value > 0);
+
+  // Calculate completion percentage
+  const completionItems = [
+    { name: "Resume", completed: !!resume && resumeScore > 0, score: resumeScore, link: "/student/resume" },
+    { name: "LinkedIn", completed: !!linkedin && linkedinScore > 0, score: linkedinScore, link: "/student/linkedin" },
+    { name: "Career Quiz", completed: !!quiz, score: quizScore, link: "/student/career-quiz" },
+    { name: "Career Paths", completed: !!careerPaths, score: careerPaths?.suggested_paths?.length > 0 ? 100 : 0, link: "/student/career-paths" },
+    { name: "Skills Plan", completed: !!skillsRec, score: skillsRec?.recommended_skills?.length > 0 ? 100 : 0, link: "/student/skills-recommendations" },
+  ];
+  const completionPercentage = Math.round((completionItems.filter(i => i.completed).length / completionItems.length) * 100);
+
+  // Get top recommended skills
+  const topSkills = skillsRec?.priority_skills?.slice(0, 5) || [];
+
+  // Get top career path
+  const topCareerPath = careerPaths?.top_matches?.primary || null;
+
+  // Quick actions
+  const quickActions = [
+    { 
+      icon: FileText, 
+      label: "Resume", 
+      href: "/student/resume",
+      status: resume ? (resumeScore >= 70 ? "good" : "needs-work") : "missing",
+      score: resumeScore
+    },
+    { 
+      icon: Linkedin, 
+      label: "LinkedIn", 
+      href: "/student/linkedin",
+      status: linkedin ? (linkedinScore >= 70 ? "good" : "needs-work") : "missing",
+      score: linkedinScore
+    },
+    { 
+      icon: Brain, 
+      label: "Career Quiz", 
+      href: "/student/career-quiz",
+      status: quiz ? "good" : "missing",
+      score: quizScore
+    },
+    { 
+      icon: Target, 
+      label: "Career Paths", 
+      href: "/student/career-paths",
+      status: careerPaths ? "good" : "missing"
+    },
+    { 
+      icon: BookOpen, 
+      label: "Skills", 
+      href: "/student/skills-recommendations",
+      status: skillsRec ? "good" : "missing"
+    },
+    { 
+      icon: Briefcase, 
+      label: "Job Board", 
+      href: "/student/jobs",
+      status: "action"
+    },
   ];
 
+  // Recalculate career score when data changes
   useEffect(() => {
-    if (profile) {
-      setCareerScore(profile.career_score || 0);
-      setXp(profile.xp_points || 0);
-      setLevel(profile.level || "Beginner");
-    }
-  }, [profile]);
-
-  // Recalculate career score when resume, LinkedIn, or skill path changes
-  useEffect(() => {
-    if (user && (resume || linkedin || skillPath)) {
-      // Trigger career score calculation
+    if (user && (resume || linkedin || quiz)) {
       supabase.functions.invoke("calculate-career-score", {
         body: { user_id: user.id }
       }).then(() => {
-        // Refresh profile to get updated score
         queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
       }).catch((e) => {
         console.warn("Failed to calculate career score:", e);
       });
     }
-  }, [resume?.ats_score, linkedin?.completeness_score, skillPath?.progress_percentage, user?.id]);
+  }, [resume?.ats_score, linkedin?.completeness_score, quiz, user?.id]);
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-500";
+    if (score >= 60) return "text-yellow-500";
+    return "text-red-500";
+  };
+
+  const getScoreBg = (score: number) => {
+    if (score >= 80) return "bg-green-500/20 border-green-500/50";
+    if (score >= 60) return "bg-yellow-500/20 border-yellow-500/50";
+    return "bg-red-500/20 border-red-500/50";
+  };
 
   return (
     <DashboardLayout navItems={navItems}>
       <div className="space-y-6 p-6">
+        {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-          <p className="text-gray-400">Welcome back! Here's your career overview.</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">
+                Welcome back, {profile?.full_name?.split(" ")[0] || "Student"}! 👋
+              </h1>
+              <p className="text-gray-400">Here's your career overview and insights</p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-400 mb-1">Career Score</div>
+              <div className={`text-5xl font-bold ${getScoreColor(careerScore)}`}>
+                {careerScore}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">out of 100</div>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Career Orb Section */}
-        <div className="flex justify-center mb-8">
-          <CareerOrb score={careerScore} subScores={subScores} />
-        </div>
-
-        {/* Main Grid */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Skill Gap Radar */}
-          <SkillGapRadar resume={resume} skillPath={skillPath} />
-
-          {/* Next Best Actions */}
-          <NextActions resume={resume} linkedin={linkedin} skillPath={skillPath} />
-        </div>
-
-        {/* Bottom Section */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* XP & Level */}
-          <XPDisplay xp={xp} level={level} />
-
-          {/* College Events */}
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="glass-hover">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                Upcoming Events
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {events && events.length > 0 ? (
-                events.map((event: any) => (
-                  <div key={event.id} className="p-3 rounded-lg glass">
-                    <div className="font-semibold text-sm">{event.title || event.event_name}</div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {new Date(event.event_date).toLocaleDateString()}
-                    </div>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">Resume Score</div>
+                  <div className={`text-2xl font-bold ${getScoreColor(resumeScore)}`}>
+                    {resumeScore}
                   </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-400">No upcoming events</div>
-              )}
-              <Link to="/student/events">
-                <Button variant="outline" size="sm" className="w-full">
-                  View All Events
-                </Button>
-              </Link>
+                </div>
+                <FileText className={`h-8 w-8 ${getScoreColor(resumeScore)} opacity-50`} />
+              </div>
             </CardContent>
           </Card>
-          
-          {/* Recent Applications */}
           <Card className="glass-hover">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5 text-primary" />
-                Recent Applications
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {applications && applications.length > 0 ? (
-                applications.map((app: any) => (
-                  <div key={app.id} className="p-3 rounded-lg glass">
-                    <div className="font-semibold text-sm">{app.jobs?.title || "Job"}</div>
-                    <div className="flex items-center justify-between mt-2">
-                      <Badge variant="outline" className="text-xs">
-                        {app.status}
-                      </Badge>
-                      <span className="text-xs text-gray-400">
-                        {new Date(app.applied_at).toLocaleDateString()}
-                      </span>
-                    </div>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">LinkedIn Score</div>
+                  <div className={`text-2xl font-bold ${getScoreColor(linkedinScore)}`}>
+                    {linkedinScore}
                   </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-400">No applications yet</div>
-              )}
-              <Link to="/student/applications">
-                <Button variant="outline" size="sm" className="w-full">
-                  View All Applications
-                </Button>
-              </Link>
+                </div>
+                <Linkedin className={`h-8 w-8 ${getScoreColor(linkedinScore)} opacity-50`} />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">Applications</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {totalApplications}
+                  </div>
+                </div>
+                <Briefcase className="h-8 w-8 text-primary opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">Profile Complete</div>
+                  <div className={`text-2xl font-bold ${getScoreColor(completionPercentage)}`}>
+                    {completionPercentage}%
+                  </div>
+                </div>
+                <CheckCircle className={`h-8 w-8 ${getScoreColor(completionPercentage)} opacity-50`} />
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Leaderboard Preview */}
+        {/* Quick Actions */}
         <Card className="glass-hover">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-primary" />
-                  College Leaderboard
-                </CardTitle>
-                <CardDescription>Top performers in your college</CardDescription>
-              </div>
-              <Link to="/student/leaderboard">
-                <Button variant="ghost" size="sm">
-                  View Full <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>Access key features and improve your profile</CardDescription>
           </CardHeader>
           <CardContent>
-            {profile?.college_id ? (
-              <LeaderboardPreview collegeId={profile.college_id} currentUserId={user?.id} />
-            ) : (
-              <div className="text-sm text-gray-400 text-center py-4">
-                Join a college to see leaderboard
-              </div>
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {quickActions.map((action, idx) => (
+                <Link key={idx} to={action.href}>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className={`p-4 rounded-lg glass-hover border-2 transition-all cursor-pointer ${
+                      action.status === "good" ? "border-green-500/50 bg-green-500/10" :
+                      action.status === "needs-work" ? "border-yellow-500/50 bg-yellow-500/10" :
+                      action.status === "missing" ? "border-red-500/50 bg-red-500/10" :
+                      "border-primary/50 bg-primary/10"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center text-center space-y-2">
+                      <action.icon className={`h-6 w-6 ${
+                        action.status === "good" ? "text-green-500" :
+                        action.status === "needs-work" ? "text-yellow-500" :
+                        action.status === "missing" ? "text-red-500" :
+                        "text-primary"
+                      }`} />
+                      <div className="text-sm font-semibold">{action.label}</div>
+                      {action.score !== undefined && (
+                        <Badge variant="outline" className="text-xs">
+                          {action.score}/100
+                        </Badge>
+                      )}
+                      {action.status === "missing" && (
+                        <Badge variant="destructive" className="text-xs">Setup</Badge>
+                      )}
+                    </div>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
+
+        {/* Main Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left Column - Insights */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Real Insights */}
+            <Card className="glass-hover">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Career Insights
+                </CardTitle>
+                <CardDescription>Personalized recommendations based on your profile</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!resume && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/50">
+                    <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Upload Your Resume</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Your resume is the foundation of your career profile. Upload it to get ATS scoring and personalized recommendations.
+                      </div>
+                      <Link to="/student/resume">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          Upload Resume <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {resume && resumeScore < 70 && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/50">
+                    <TrendingUp className="h-5 w-5 text-yellow-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Improve Your Resume Score</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Your resume score is {resumeScore}/100. Focus on adding quantified achievements and relevant keywords to boost your ATS score.
+                      </div>
+                      <Link to="/student/resume">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          Optimize Resume <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {!quiz && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/50">
+                    <Brain className="h-5 w-5 text-blue-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Take Career Assessment Quiz</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Discover your ideal career path with our personalized quiz. Get AI-powered insights and role recommendations.
+                      </div>
+                      <Link to="/student/career-quiz">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          Start Quiz <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {topCareerPath && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/50">
+                    <Target className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Your Top Career Path: {topCareerPath}</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        Based on your profile and quiz results, this career path matches you best. Explore skills and next steps.
+                      </div>
+                      <Link to="/student/career-paths">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          View Career Paths <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {topSkills.length > 0 && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-purple-500/10 border border-purple-500/50">
+                    <BookOpen className="h-5 w-5 text-purple-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-2">Priority Skills to Learn</div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {topSkills.map((skill: string, idx: number) => (
+                          <Badge key={idx} variant="outline">{skill}</Badge>
+                        ))}
+                      </div>
+                      <Link to="/student/skills-recommendations">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          View All Skills <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {totalApplications === 0 && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-orange-500/10 border border-orange-500/50">
+                    <Briefcase className="h-5 w-5 text-orange-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Start Applying to Jobs</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        You haven't applied to any jobs yet. Browse the job board and start applying to increase your career score.
+                      </div>
+                      <Link to="/student/jobs">
+                        <Button size="sm" variant="outline" className="mt-2">
+                          Browse Jobs <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {totalApplications > 0 && shortlistedApps === 0 && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/50">
+                    <MessageSquare className="h-5 w-5 text-yellow-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">No Shortlists Yet</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        You've applied to {totalApplications} job{totalApplications > 1 ? 's' : ''}, but none have been shortlisted. Consider improving your resume and LinkedIn profile.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {shortlistedApps > 0 && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/50">
+                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-1">Great Progress! 🎉</div>
+                      <div className="text-xs text-gray-400 mb-2">
+                        You've been shortlisted for {shortlistedApps} position{shortlistedApps > 1 ? 's' : ''}! Keep up the momentum.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Profile Completion */}
+            <Card className="glass-hover">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Profile Completion
+                </CardTitle>
+                <CardDescription>Track your profile setup progress</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Progress value={completionPercentage} className="h-3" />
+                <div className="space-y-2">
+                  {completionItems.map((item, idx) => (
+                    <Link key={idx} to={item.link}>
+                      <div className="flex items-center justify-between p-3 rounded-lg glass-hover cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          {item.completed ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-gray-500" />
+                          )}
+                          <span className="text-sm">{item.name}</span>
+                        </div>
+                        {item.completed && item.score > 0 && (
+                          <Badge variant="outline" className={getScoreColor(item.score)}>
+                            {item.score}/100
+                          </Badge>
+                        )}
+                        {!item.completed && (
+                          <Badge variant="destructive" className="text-xs">Setup</Badge>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Applications */}
+            {totalApplications > 0 && (
+              <Card className="glass-hover">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-primary" />
+                        Recent Applications
+                      </CardTitle>
+                      <CardDescription>Your latest job applications</CardDescription>
+                    </div>
+                    <Link to="/student/applications">
+                      <Button variant="ghost" size="sm">
+                        View All <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {applications?.slice(0, 5).map((app: any) => (
+                      <div key={app.id} className="flex items-center justify-between p-3 rounded-lg glass">
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm">{app.jobs?.title || "Job"}</div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {app.jobs?.company_name || "Company"} • {new Date(app.applied_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={
+                            app.status === "shortlisted" ? "default" :
+                            app.status === "rejected" ? "destructive" :
+                            "outline"
+                          }
+                        >
+                          {app.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column - Stats & Activity */}
+          <div className="space-y-6">
+            {/* Application Status */}
+            {totalApplications > 0 && (
+              <Card className="glass-hover">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Application Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {applicationStatusData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={applicationStatusData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {applicationStatusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="text-sm text-gray-400 text-center py-8">
+                      No application data yet
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Score Breakdown */}
+            <Card className="glass-hover">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Score Breakdown
+                </CardTitle>
+                <CardDescription>Components of your career score</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Resume</span>
+                    <span className={`text-sm font-semibold ${getScoreColor(resumeScore)}`}>
+                      {resumeScore}/100
+                    </span>
+                  </div>
+                  <Progress value={resumeScore} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">LinkedIn</span>
+                    <span className={`text-sm font-semibold ${getScoreColor(linkedinScore)}`}>
+                      {linkedinScore}/100
+                    </span>
+                  </div>
+                  <Progress value={linkedinScore} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Career Quiz</span>
+                    <span className={`text-sm font-semibold ${getScoreColor(quizScore)}`}>
+                      {quizScore}/100
+                    </span>
+                  </div>
+                  <Progress value={quizScore} className="h-2" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Activity</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {Math.min(totalApplications * 10, 100)}/100
+                    </span>
+                  </div>
+                  <Progress value={Math.min(totalApplications * 10, 100)} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Events */}
+            <Card className="glass-hover">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Upcoming Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {events && events.length > 0 ? (
+                  events.map((event: any) => (
+                    <div key={event.id} className="p-3 rounded-lg glass">
+                      <div className="font-semibold text-sm">{event.title || event.event_name}</div>
+                      <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <Clock3 className="h-3 w-3" />
+                        {new Date(event.event_date).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-400 text-center py-4">
+                    No upcoming events
+                  </div>
+                )}
+                <Link to="/student/events">
+                  <Button variant="outline" size="sm" className="w-full">
+                    View All Events
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Quick Links */}
+            <Card className="glass-hover">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  Quick Links
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link to="/student/jobs">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Browse Jobs
+                  </Button>
+                </Link>
+                <Link to="/student/career-paths">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Target className="mr-2 h-4 w-4" />
+                    Career Paths
+                  </Button>
+                </Link>
+                <Link to="/student/skills-recommendations">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Skills Recommendations
+                  </Button>
+                </Link>
+                <Link to="/student/leaderboard">
+                  <Button variant="outline" className="w-full justify-start" size="sm">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    Leaderboard
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
