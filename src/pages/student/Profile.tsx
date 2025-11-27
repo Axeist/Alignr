@@ -8,13 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useColleges } from "@/hooks/useColleges";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, Save, Lock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { colleges, collegeCategories, getCollegesByCategory, getCollegeById, type CollegeCategory } from "@/lib/colleges";
+import { collegeCategories, getCollegesByCategory, type CollegeCategory } from "@/lib/colleges";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 
@@ -22,6 +23,7 @@ export default function StudentProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { staticColleges, getStaticCollegeIdForDbCollege, getCollegeById, findOrCreateCollege } = useColleges();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -82,20 +84,19 @@ export default function StudentProfile() {
     enabled: !!user,
   });
 
-  // Track selected college for display
+  // Track selected college for display (using static college ID)
   const [selectedCollege, setSelectedCollege] = useState<string>("");
   
-  // Get college from database and match with our list
-  const currentCollegeFromDb = profile?.college?.name;
-  
-  // Update selected college when profile changes
+  // Update selected college when profile changes - properly match database college with static list
   useEffect(() => {
-    if (profile?.college?.name) {
-      const collegeId = colleges.find(c => c.name === profile.college.name)?.id || "";
-      setSelectedCollege(collegeId);
+    if (profile?.college) {
+      // Use the helper function to match database college with static list
+      const staticCollegeId = getStaticCollegeIdForDbCollege(profile.college);
+      setSelectedCollege(staticCollegeId);
     } else {
       setSelectedCollege("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   // Profile update mutation
@@ -176,46 +177,11 @@ export default function StudentProfile() {
       const college = getCollegeById(collegeId);
       if (!college) throw new Error("College not found");
 
-      // Try using database function first (bypasses RLS issues)
-      const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
-        'find_or_create_college',
-        {
-          p_name: college.name,
-          p_location: college.location,
-        }
-      );
+      // Use the centralized findOrCreateCollege function
+      const finalCollegeId = await findOrCreateCollege(college.name, college.location);
 
-      let finalCollegeId: string;
-
-      if (!functionError && collegeDbId) {
-        // Function worked, use its result
-        finalCollegeId = collegeDbId as string;
-      } else {
-        // Fallback: direct database operations (now allowed via RLS policy)
-        let { data: existingCollege } = await supabase
-          .from("colleges")
-          .select("id")
-          .eq("name", college.name)
-          .maybeSingle();
-
-        if (existingCollege) {
-          finalCollegeId = existingCollege.id;
-        } else {
-          // Try to create the college (now allowed via RLS policy)
-          const { data: newCollege, error: createError } = await supabase
-            .from("colleges")
-            .insert({
-              name: college.name,
-              location: college.location,
-            })
-            .select("id")
-            .single();
-          
-          if (createError) {
-            throw new Error(`Failed to create college: ${createError.message}`);
-          }
-          finalCollegeId = newCollege.id;
-        }
+      if (!finalCollegeId) {
+        throw new Error("Failed to find or create college");
       }
 
       // Update profile with college_id
@@ -498,8 +464,8 @@ export default function StudentProfile() {
                         className="w-full justify-between"
                       >
                         {selectedCollege
-                          ? getCollegeById(selectedCollege)?.name || currentCollegeFromDb || "Select college..."
-                          : currentCollegeFromDb || "Select college..."}
+                          ? getCollegeById(selectedCollege)?.name || profile?.college?.name || "Select college..."
+                          : profile?.college?.name || "Select college..."}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -510,7 +476,7 @@ export default function StudentProfile() {
                           <CommandEmpty>No college found.</CommandEmpty>
                           {(() => {
                             const filteredColleges = collegeCategoryFilter === "all"
-                              ? colleges
+                              ? staticColleges
                               : getCollegesByCategory(collegeCategoryFilter);
                             
                             const grouped = filteredColleges.reduce((acc, college) => {
@@ -519,7 +485,7 @@ export default function StudentProfile() {
                               }
                               acc[college.category].push(college);
                               return acc;
-                            }, {} as Record<CollegeCategory, typeof colleges>);
+                            }, {} as Record<CollegeCategory, typeof staticColleges>);
                             
                             return Object.entries(grouped).map(([category, categoryColleges]) => {
                               const categoryLabel = collegeCategories.find(c => c.value === category)?.label || category;

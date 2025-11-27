@@ -7,18 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { useColleges } from "@/hooks/useColleges";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, Save, Lock, LockIcon, Building2, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { colleges, searchColleges } from "@/lib/colleges";
+import { searchColleges } from "@/lib/colleges";
 
 export default function AlumniProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { dbColleges, findOrCreateCollege } = useColleges();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -51,18 +53,6 @@ export default function AlumniProfile() {
     enabled: !!user,
   });
 
-  // Fetch all colleges from database
-  const { data: dbColleges } = useQuery({
-    queryKey: ["db-colleges"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("colleges")
-        .select("id, name, location")
-        .order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
@@ -115,45 +105,11 @@ export default function AlumniProfile() {
     if (!user) return;
     
     try {
-      // Use the same find_or_create_college function for consistency
-      // This ensures we get the same college_id for the same college name
-      const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
-        'find_or_create_college',
-        {
-          p_name: collegeName,
-          p_location: location || "",
-        }
-      );
-
-      let collegeId: string;
-
-      if (!functionError && collegeDbId) {
-        // Function worked, use its result
-        collegeId = collegeDbId as string;
-      } else {
-        // Fallback: try to find existing college using case-insensitive match
-        const { data: existingCollege } = await supabase
-          .from("colleges")
-          .select("id")
-          .ilike("name", collegeName)
-          .maybeSingle();
-        
-        if (existingCollege) {
-          collegeId = existingCollege.id;
-        } else {
-          // Create new college
-          const { data: newCollege, error: createError } = await supabase
-            .from("colleges")
-            .insert({
-              name: collegeName,
-              location: location || "",
-            })
-            .select("id")
-            .single();
-          
-          if (createError) throw createError;
-          collegeId = newCollege.id;
-        }
+      // Use the centralized findOrCreateCollege function
+      const collegeId = await findOrCreateCollege(collegeName, location);
+      
+      if (!collegeId) {
+        throw new Error("Failed to find or create college");
       }
       
       // Update profile with college using the RPC function

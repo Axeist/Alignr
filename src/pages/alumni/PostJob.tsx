@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useColleges } from "@/hooks/useColleges";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,7 @@ export default function PostJob() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { dbColleges, findOrCreateCollege } = useColleges();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editJobId = searchParams.get("edit");
@@ -60,44 +62,10 @@ export default function PostJob() {
     enabled: !!user,
   });
 
-  // Fetch colleges for selection
-  const { data: colleges } = useQuery({
-    queryKey: ["colleges"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("colleges")
-        .select("id, name")
-        .order("name");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
   // Helper function to get college_id by name (ensures consistency)
   const getCollegeIdByName = async (collegeName: string): Promise<string | null> => {
     if (!collegeName) return null;
-    
-    // Use find_or_create_college to ensure we get the same college_id
-    const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
-      'find_or_create_college',
-      {
-        p_name: collegeName,
-        p_location: "",
-      }
-    );
-
-    if (!functionError && collegeDbId) {
-      return collegeDbId as string;
-    }
-
-    // Fallback: find by name (case-insensitive)
-    const { data: existingCollege } = await supabase
-      .from("colleges")
-      .select("id")
-      .ilike("name", collegeName)
-      .maybeSingle();
-
-    return existingCollege?.id || null;
+    return await findOrCreateCollege(collegeName);
   };
 
   // Fetch job data if in edit mode
@@ -150,7 +118,7 @@ export default function PostJob() {
       let finalCollegeId: string | null = null;
       if (data.college_id && data.college_id !== "all") {
         // Get the college name from the selected college_id
-        const selectedCollege = colleges?.find(c => c.id === data.college_id);
+        const selectedCollege = dbColleges?.find(c => c.id === data.college_id);
         if (selectedCollege) {
           // Use find_or_create_college to ensure we get the correct college_id
           // This ensures consistency with student profiles
@@ -422,7 +390,7 @@ export default function PostJob() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Colleges</SelectItem>
-                      {colleges?.map((college) => (
+                      {dbColleges?.map((college) => (
                         <SelectItem key={college.id} value={college.id}>
                           {college.name}
                         </SelectItem>
