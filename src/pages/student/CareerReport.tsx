@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { 
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 export default function CareerReport() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
 
@@ -90,6 +91,16 @@ export default function CareerReport() {
       if (!user) throw new Error("Not authenticated");
       setGenerating(true);
 
+      // First, calculate/update career score
+      try {
+        await supabase.functions.invoke("calculate-career-score", {
+          body: { user_id: user.id }
+        });
+      } catch (e) {
+        console.warn("Failed to calculate career score:", e);
+        // Continue anyway - not critical
+      }
+
       // Call Supabase Edge Function to generate report
       const { data, error } = await supabase.functions.invoke("generate-career-report", {
         body: { user_id: user.id }
@@ -102,6 +113,8 @@ export default function CareerReport() {
       setReportUrl(data.report_url);
       toast.success("Career report generated successfully!");
       setGenerating(false);
+      // Refresh profile to get updated career score
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to generate report");

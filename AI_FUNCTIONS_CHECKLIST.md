@@ -134,3 +134,4 @@ If errors persist after following this checklist:
 3. Verify API key is valid and has quota
 4. Check database permissions/RLS policies
 
+

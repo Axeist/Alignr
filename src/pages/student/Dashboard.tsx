@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { 
@@ -23,8 +23,60 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from "recharts";
 
+// Leaderboard Preview Component
+const LeaderboardPreview = ({ collegeId, currentUserId }: { collegeId: string; currentUserId?: string }) => {
+  const { data: leaderboard } = useQuery({
+    queryKey: ["leaderboard", collegeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, department, career_score")
+        .eq("college_id", collegeId)
+        .eq("role", "student")
+        .order("career_score", { ascending: false, nullsFirst: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!collegeId
+  });
+
+  if (!leaderboard || leaderboard.length === 0) {
+    return <div className="text-sm text-gray-400 text-center py-4">No leaderboard data yet</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {leaderboard.map((student: any, idx: number) => (
+        <div
+          key={student.user_id}
+          className={`flex items-center justify-between p-2 rounded-lg glass ${
+            student.user_id === currentUserId ? "ring-2 ring-primary" : ""
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
+              {idx + 1}
+            </div>
+            <div>
+              <div className="text-sm font-semibold">
+                {student.full_name || "Student"}
+                {student.user_id === currentUserId && " (You)"}
+              </div>
+              <div className="text-xs text-gray-400">{student.department || "N/A"}</div>
+            </div>
+          </div>
+          <Badge className="bg-primary/20 text-primary">
+            Score: {student.career_score || 0}
+          </Badge>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Career Orb Component
-const CareerOrb = ({ score }: { score: number }) => {
+const CareerOrb = ({ score, subScores }: { score: number; subScores: Array<{ label: string; value: number }> }) => {
   const [hovered, setHovered] = useState(false);
   const circumference = 2 * Math.PI * 70;
   const offset = circumference - (score / 100) * circumference;
@@ -34,13 +86,6 @@ const CareerOrb = ({ score }: { score: number }) => {
     if (score < 76) return "#F59E0B"; // yellow
     return "#10B981"; // green
   };
-
-  const subScores = [
-    { label: "Resume", value: 85 },
-    { label: "LinkedIn", value: 70 },
-    { label: "Skills Match", value: 65 },
-    { label: "Activity", value: 80 }
-  ];
 
   return (
     <motion.div
@@ -115,12 +160,23 @@ const CareerOrb = ({ score }: { score: number }) => {
 };
 
 // Skill Gap Radar Chart
-const SkillGapRadar = () => {
+const SkillGapRadar = ({ resume, skillPath }: { resume: any; skillPath: any }) => {
+  // Extract skills from resume
+  const currentSkills = resume?.extracted_data?.skills || [];
+  const skillGaps = skillPath?.skill_gaps || [];
+  
+  // Calculate skill categories (simplified - you can enhance this)
+  const technicalSkills = currentSkills.filter((s: string) => 
+    ['javascript', 'python', 'java', 'react', 'node', 'sql', 'html', 'css'].some(tech => 
+      s.toLowerCase().includes(tech)
+    )
+  ).length;
+  
   const data = [
-    { skill: "Technical", current: 70, target: 90 },
-    { skill: "Tools", current: 60, target: 85 },
+    { skill: "Technical", current: Math.min(technicalSkills * 10, 100), target: 90 },
+    { skill: "Tools", current: Math.min(currentSkills.length * 5, 100), target: 85 },
     { skill: "Soft Skills", current: 75, target: 80 },
-    { skill: "Languages", current: 65, target: 75 },
+    { skill: "Languages", current: Math.min(currentSkills.length * 8, 100), target: 75 },
     { skill: "Certifications", current: 50, target: 70 }
   ];
 
@@ -161,33 +217,70 @@ const SkillGapRadar = () => {
 };
 
 // Next Best Actions Component
-const NextActions = () => {
-  const actions = [
-    {
+const NextActions = ({ resume, linkedin, skillPath }: { resume: any; linkedin: any; skillPath: any }) => {
+  const actions = [];
+  
+  // Check resume status
+  if (!resume || resume.ats_score < 70) {
+    actions.push({
+      id: 1,
+      title: "Upload and analyze your resume to improve ATS score",
+      completed: false,
+      priority: "high"
+    });
+  } else if (resume.ats_score < 85) {
+    actions.push({
       id: 1,
       title: "Add 2 quantified achievements to your latest role",
       completed: false,
       priority: "high"
-    },
-    {
+    });
+  }
+  
+  // Check LinkedIn status
+  if (!linkedin || linkedin.completeness_score < 70) {
+    actions.push({
       id: 2,
       title: "Complete LinkedIn About section",
       completed: false,
       priority: "medium"
-    },
-    {
+    });
+  }
+  
+  // Check skill path
+  if (!skillPath) {
+    actions.push({
       id: 3,
-      title: "Apply to 3 matching jobs this week",
+      title: "Generate a skill development path for your target role",
       completed: false,
       priority: "high"
-    },
-    {
-      id: 4,
-      title: "Complete Python certification course",
-      completed: true,
+    });
+  } else if (skillPath.progress_percentage < 50) {
+    actions.push({
+      id: 3,
+      title: "Complete skill path milestones to improve career score",
+      completed: false,
       priority: "medium"
-    }
-  ];
+    });
+  }
+  
+  // Always suggest applying to jobs
+  actions.push({
+    id: 4,
+    title: "Apply to 3 matching jobs this week",
+    completed: false,
+    priority: "high"
+  });
+  
+  // If no actions, show a positive message
+  if (actions.length === 0) {
+    actions.push({
+      id: 1,
+      title: "Great job! Keep up the momentum",
+      completed: true,
+      priority: "low"
+    });
+  }
 
   return (
     <Card className="glass-hover">
@@ -269,9 +362,10 @@ const XPDisplay = ({ xp, level }: { xp: number; level: string }) => {
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [careerScore, setCareerScore] = useState(72);
-  const [xp, setXp] = useState(750);
-  const [level, setLevel] = useState("Explorer");
+  const queryClient = useQueryClient();
+  const [careerScore, setCareerScore] = useState(0);
+  const [xp, setXp] = useState(0);
+  const [level, setLevel] = useState("Beginner");
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -336,6 +430,62 @@ export default function StudentDashboard() {
     enabled: !!user
   });
 
+  // Fetch resume and LinkedIn data for dashboard components
+  const { data: resume } = useQuery({
+    queryKey: ["resume-primary", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("resumes")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_primary", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
+  const { data: linkedin } = useQuery({
+    queryKey: ["linkedin-profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("linkedin_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user
+  });
+
+  const { data: skillPath } = useQuery({
+    queryKey: ["skill-path", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("skill_paths")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data && data.length > 0 ? data[0] : null;
+    },
+    enabled: !!user
+  });
+
+  // Calculate sub-scores for career orb
+  const subScores = [
+    { label: "Resume", value: resume?.ats_score || 0 },
+    { label: "LinkedIn", value: linkedin?.completeness_score || 0 },
+    { label: "Skills Match", value: skillPath?.progress_percentage || 0 },
+    { label: "Activity", value: Math.min((applications?.length || 0) * 10, 100) }
+  ];
+
   useEffect(() => {
     if (profile) {
       setCareerScore(profile.career_score || 0);
@@ -343,6 +493,21 @@ export default function StudentDashboard() {
       setLevel(profile.level || "Beginner");
     }
   }, [profile]);
+
+  // Recalculate career score when resume, LinkedIn, or skill path changes
+  useEffect(() => {
+    if (user && (resume || linkedin || skillPath)) {
+      // Trigger career score calculation
+      supabase.functions.invoke("calculate-career-score", {
+        body: { user_id: user.id }
+      }).then(() => {
+        // Refresh profile to get updated score
+        queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+      }).catch((e) => {
+        console.warn("Failed to calculate career score:", e);
+      });
+    }
+  }, [resume?.ats_score, linkedin?.completeness_score, skillPath?.progress_percentage, user?.id]);
 
   return (
     <DashboardLayout navItems={navItems}>
@@ -358,16 +523,16 @@ export default function StudentDashboard() {
 
         {/* Career Orb Section */}
         <div className="flex justify-center mb-8">
-          <CareerOrb score={careerScore} />
+          <CareerOrb score={careerScore} subScores={subScores} />
         </div>
 
         {/* Main Grid */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Skill Gap Radar */}
-          <SkillGapRadar />
+          <SkillGapRadar resume={resume} skillPath={skillPath} />
 
           {/* Next Best Actions */}
-          <NextActions />
+          <NextActions resume={resume} linkedin={linkedin} skillPath={skillPath} />
         </div>
 
         {/* Bottom Section */}
@@ -458,22 +623,13 @@ export default function StudentDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((rank) => (
-                <div key={rank} className="flex items-center justify-between p-2 rounded-lg glass">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-                      {rank}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Student {rank}</div>
-                      <div className="text-xs text-gray-400">Computer Science</div>
-                    </div>
-                  </div>
-                  <Badge className="bg-primary/20 text-primary">Score: {95 - rank * 2}</Badge>
-                </div>
-              ))}
-            </div>
+            {profile?.college_id ? (
+              <LeaderboardPreview collegeId={profile.college_id} currentUserId={user?.id} />
+            ) : (
+              <div className="text-sm text-gray-400 text-center py-4">
+                Join a college to see leaderboard
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

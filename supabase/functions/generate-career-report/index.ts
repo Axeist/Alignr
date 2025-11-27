@@ -66,6 +66,42 @@ serve(async (req) => {
     const skillPath = skillPathResult.data;
     const applications = applicationsResult.data || [];
 
+    // Calculate/update career score before generating report
+    try {
+      const resumeScore = resume?.ats_score || 0;
+      const linkedinScore = linkedin?.completeness_score || 0;
+      const skillPathProgress = skillPath?.progress_percentage || 0;
+      const applicationCount = applications.length;
+      const activityScore = Math.min(applicationCount * 10, 100);
+
+      // Weighted calculation: Resume 40%, LinkedIn 30%, Skill Path 20%, Activity 10%
+      const careerScore = Math.round(
+        (resumeScore * 0.4) +
+        (linkedinScore * 0.3) +
+        (skillPathProgress * 0.2) +
+        (activityScore * 0.1)
+      );
+
+      // Update profile with latest career score
+      await supabaseClient
+        .from("profiles")
+        .update({ career_score: careerScore })
+        .eq("user_id", user_id);
+      
+      // Refresh profile data
+      const { data: updatedProfile } = await supabaseClient
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user_id)
+        .single();
+      if (updatedProfile) {
+        profile = updatedProfile;
+      }
+    } catch (e) {
+      console.warn("Failed to calculate career score before report generation:", e);
+      // Continue anyway - use existing career score
+    }
+
     // Build comprehensive prompt for Gemini
     const userData = {
       profile: {

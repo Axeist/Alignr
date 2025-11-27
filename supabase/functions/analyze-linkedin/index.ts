@@ -186,6 +186,41 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
       console.error("Error upserting LinkedIn profile:", upsertError);
       // Don't fail the request if upsert fails - analysis is still valid
       // Just log the error
+    } else {
+      // Recalculate career score after LinkedIn update
+      try {
+        // Fetch all relevant data for career score calculation
+        const [profileResult, resumeResult, linkedinData, skillPathResult, applicationsResult] = await Promise.all([
+          supabaseClient.from("profiles").select("*").eq("user_id", user_id).single(),
+          supabaseClient.from("resumes").select("ats_score").eq("user_id", user_id).eq("is_primary", true).maybeSingle(),
+          supabaseClient.from("linkedin_profiles").select("completeness_score").eq("user_id", user_id).maybeSingle(),
+          supabaseClient.from("skill_paths").select("progress_percentage").eq("user_id", user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabaseClient.from("applications").select("id").eq("user_id", user_id)
+        ]);
+
+        const resumeScore = resumeResult.data?.ats_score || 0;
+        const linkedinScore = linkedinData.data?.completeness_score || 0;
+        const skillPathProgress = skillPathResult.data?.progress_percentage || 0;
+        const applicationCount = applicationsResult.data?.length || 0;
+        const activityScore = Math.min(applicationCount * 10, 100);
+
+        // Weighted calculation: Resume 40%, LinkedIn 30%, Skill Path 20%, Activity 10%
+        const careerScore = Math.round(
+          (resumeScore * 0.4) +
+          (linkedinScore * 0.3) +
+          (skillPathProgress * 0.2) +
+          (activityScore * 0.1)
+        );
+
+        // Update career score
+        await supabaseClient
+          .from("profiles")
+          .update({ career_score: careerScore })
+          .eq("user_id", user_id);
+      } catch (e) {
+        console.warn("Failed to recalculate career score:", e);
+        // Don't fail the request if career score calculation fails
+      }
     }
 
     return new Response(

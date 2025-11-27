@@ -46,10 +46,9 @@ export default function SkillPath() {
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return data;
+        .limit(1);
+      if (error) throw error;
+      return data && data.length > 0 ? data[0] : null;
     },
     enabled: !!user
   });
@@ -124,7 +123,7 @@ export default function SkillPath() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Target className="h-5 w-5 text-primary" />
-                      {skillPath.target_role}
+                      {skillPath.target_role || "Skill Path"}
                     </CardTitle>
                     <CardDescription>Your personalized learning path</CardDescription>
                   </div>
@@ -157,10 +156,11 @@ export default function SkillPath() {
             </Card>
 
             {/* Learning Path Timeline */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Learning Path</h2>
-              <div className="space-y-4">
-                {milestones.map((milestone: any, idx: number) => (
+            {milestones && milestones.length > 0 ? (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold">Learning Path</h2>
+                <div className="space-y-4">
+                  {milestones.map((milestone: any, idx: number) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, x: -20 }}
@@ -304,8 +304,40 @@ export default function SkillPath() {
                             variant="outline"
                             className="w-full"
                             onClick={async () => {
+                              if (!user || !skillPath) return;
+                              
                               // Update milestone as completed
-                              toast.success("Milestone marked as complete!");
+                              const updatedMilestones = milestones.map((m: any, i: number) => 
+                                i === idx ? { ...m, completed: true } : m
+                              );
+                              
+                              // Calculate new progress
+                              const completedCount = updatedMilestones.filter((m: any) => m.completed).length;
+                              const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
+                              
+                              const { error } = await supabase
+                                .from("skill_paths")
+                                .update({
+                                  milestones: updatedMilestones,
+                                  progress_percentage: newProgress,
+                                  updated_at: new Date().toISOString()
+                                })
+                                .eq("id", skillPath.id);
+                              
+                              if (error) {
+                                toast.error("Failed to update milestone");
+                              } else {
+                                toast.success("Milestone marked as complete!");
+                                queryClient.invalidateQueries({ queryKey: ["skill-path", user.id] });
+                                // Recalculate career score
+                                try {
+                                  await supabase.functions.invoke("calculate-career-score", {
+                                    body: { user_id: user.id }
+                                  });
+                                } catch (e) {
+                                  // Silently fail - career score update is not critical
+                                }
+                              }
                             }}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -315,9 +347,32 @@ export default function SkillPath() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <Card className="glass-hover">
+                <CardContent className="pt-6 text-center py-12">
+                  <Target className="h-12 w-12 mx-auto mb-4 text-primary" />
+                  <h3 className="text-xl font-semibold mb-2">No Milestones Yet</h3>
+                  <p className="text-gray-400 mb-6">
+                    Your skill path has been created, but milestones are still being generated.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const targetRole = prompt("Enter your target role (e.g., Software Engineer):");
+                      if (targetRole) {
+                        generatePathMutation.mutate(targetRole);
+                      }
+                    }}
+                    className="gradient-primary"
+                    disabled={generatePathMutation.isPending}
+                  >
+                    {generatePathMutation.isPending ? "Regenerating..." : "Regenerate Skill Path"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Final Capstone Project */}
             {skillPath.final_project && (

@@ -45,3 +45,4 @@ FROM pg_policies
 WHERE tablename = 'colleges' 
 AND policyname = 'Authenticated users can create colleges';
 
+

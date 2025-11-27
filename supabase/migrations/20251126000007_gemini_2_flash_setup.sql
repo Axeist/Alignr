@@ -206,3 +206,4 @@ COMMENT ON COLUMN public.career_reports.report_url IS 'Public URL to the generat
 COMMENT ON COLUMN public.career_reports.report_data IS 'JSON data containing the full report structure';
 COMMENT ON COLUMN public.career_reports.generation_status IS 'Status of report generation: pending, generating, completed, failed';
 
+

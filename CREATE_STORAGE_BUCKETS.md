@@ -124,3 +124,4 @@ Or check in the Dashboard: https://supabase.com/dashboard/project/tkghwmabacbmpf
 - MIME type restrictions help prevent malicious uploads
 - RLS policies in migrations will control access at the file level
 
+

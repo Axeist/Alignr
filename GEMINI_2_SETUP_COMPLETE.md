@@ -150,3 +150,4 @@ After setup, test each feature:
 
 Once you complete the steps above, all AI features will be fully functional with Gemini 2.0 Flash-Lite!
 
+
