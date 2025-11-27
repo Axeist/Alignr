@@ -21,189 +21,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const QUIZ_QUESTIONS = [
-  {
-    id: "interests",
-    category: "Interests & Passions",
-    question: "What type of work excites you the most?",
-    options: [
-      "Building and creating things (coding, design, engineering)",
-      "Solving complex problems and puzzles",
-      "Helping and working with people",
-      "Analyzing data and finding patterns",
-      "Leading teams and making strategic decisions"
-    ]
-  },
-  {
-    id: "work_style",
-    category: "Work Style",
-    question: "How do you prefer to work?",
-    options: [
-      "Independently with minimal supervision",
-      "In a collaborative team environment",
-      "A mix of both independent and team work",
-      "Leading and mentoring others",
-      "Following structured processes and guidelines"
-    ]
-  },
-  {
-    id: "skills",
-    category: "Current Skills",
-    question: "What are your strongest skills right now?",
-    options: [
-      "Technical skills (programming, tools, software)",
-      "Communication and interpersonal skills",
-      "Analytical and problem-solving skills",
-      "Creative and design skills",
-      "Leadership and management skills"
-    ]
-  },
-  {
-    id: "learning",
-    category: "Learning Preference",
-    question: "How do you learn best?",
-    options: [
-      "Hands-on practice and projects",
-      "Structured courses and tutorials",
-      "Reading and research",
-      "Working with mentors",
-      "Trial and error experimentation"
-    ]
-  },
-  {
-    id: "career_goals",
-    category: "Career Goals",
-    question: "What's your primary career goal?",
-    options: [
-      "Become a technical expert in my field",
-      "Move into management and leadership",
-      "Start my own company or freelance",
-      "Work for a prestigious company",
-      "Make a positive impact in my community"
-    ]
-  },
-  {
-    id: "work_life",
-    category: "Work-Life Balance",
-    question: "What work-life balance is most important to you?",
-    options: [
-      "Flexible hours and remote work options",
-      "Stable 9-5 schedule",
-      "High intensity with high rewards",
-      "Work that aligns with personal values",
-      "Opportunities for continuous learning"
-    ]
-  },
-  {
-    id: "challenges",
-    category: "Challenges",
-    question: "What type of challenges do you enjoy?",
-    options: [
-      "Technical and technical problems",
-      "People and communication challenges",
-      "Strategic and business problems",
-      "Creative and design challenges",
-      "Research and discovery challenges"
-    ]
-  },
-  {
-    id: "values",
-    category: "Values",
-    question: "What matters most to you in a career?",
-    options: [
-      "High salary and financial security",
-      "Work-life balance and flexibility",
-      "Making a meaningful impact",
-      "Continuous learning and growth",
-      "Recognition and prestige"
-    ]
-  },
-  {
-    id: "team_size",
-    category: "Team Preference",
-    question: "What team size do you prefer?",
-    options: [
-      "Small teams (2-5 people)",
-      "Medium teams (6-15 people)",
-      "Large teams (15+ people)",
-      "Working solo",
-      "No preference"
-    ]
-  },
-  {
-    id: "industry",
-    category: "Industry Interest",
-    question: "Which industry interests you most?",
-    options: [
-      "Technology and Software",
-      "Finance and Banking",
-      "Healthcare and Medicine",
-      "Education and Training",
-      "Creative and Media"
-    ]
-  },
-  {
-    id: "location",
-    category: "Location Preference",
-    question: "Where would you prefer to work?",
-    options: [
-      "Remote work from anywhere",
-      "Hybrid (mix of remote and office)",
-      "In a major tech hub city",
-      "In my local area",
-      "No preference"
-    ]
-  },
-  {
-    id: "growth",
-    category: "Career Growth",
-    question: "How do you want to grow in your career?",
-    options: [
-      "Become a subject matter expert",
-      "Move up the corporate ladder",
-      "Build a diverse skill set",
-      "Start my own venture",
-      "Contribute to open source and community"
-    ]
-  },
-  {
-    id: "projects",
-    category: "Project Preference",
-    question: "What type of projects interest you?",
-    options: [
-      "Large-scale systems and infrastructure",
-      "User-facing products and applications",
-      "Research and innovation projects",
-      "Social impact and nonprofit work",
-      "Entrepreneurial and startup projects"
-    ]
-  },
-  {
-    id: "feedback",
-    category: "Feedback Style",
-    question: "How do you prefer to receive feedback?",
-    options: [
-      "Direct and immediate feedback",
-      "Regular structured reviews",
-      "Continuous informal feedback",
-      "Self-assessment and reflection",
-      "Peer feedback and collaboration"
-    ]
-  },
-  {
-    id: "future",
-    category: "Future Vision",
-    question: "Where do you see yourself in 5 years?",
-    options: [
-      "Senior technical role or architect",
-      "Management or leadership position",
-      "Running my own business",
-      "Expert consultant in my field",
-      "Making a career transition"
-    ]
-  }
-];
-
 export default function CareerQuiz() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -211,6 +28,7 @@ export default function CareerQuiz() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -225,6 +43,31 @@ export default function CareerQuiz() {
     { label: "Events", href: "/student/events" },
     { label: "Leaderboard", href: "/student/leaderboard" },
   ];
+
+  // Generate personalized quiz questions based on profile
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
+    queryKey: ["quiz-questions", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      const { data, error } = await supabase.functions.invoke("generate-quiz-questions", {
+        body: { user_id: user.id }
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+    staleTime: Infinity, // Questions don't change once generated
+    cacheTime: Infinity
+  });
+
+  // Set questions when they're loaded
+  useEffect(() => {
+    if (questionsData?.questions) {
+      setQuizQuestions(questionsData.questions);
+    }
+  }, [questionsData]);
 
   // Fetch existing quiz results
   const { data: quizResult } = useQuery({
@@ -264,7 +107,7 @@ export default function CareerQuiz() {
       toast.success("Quiz completed! Your career insights are ready.");
       queryClient.invalidateQueries({ queryKey: ["career-quiz", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
-      setCurrentQuestion(QUIZ_QUESTIONS.length); // Show results
+      setCurrentQuestion(quizQuestions.length); // Show results
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit quiz");
@@ -272,12 +115,12 @@ export default function CareerQuiz() {
   });
 
   const handleNext = () => {
-    if (selectedAnswer) {
-      const questionId = QUIZ_QUESTIONS[currentQuestion].id;
+    if (selectedAnswer && quizQuestions[currentQuestion]) {
+      const questionId = quizQuestions[currentQuestion].id;
       setResponses({ ...responses, [questionId]: selectedAnswer });
       setSelectedAnswer("");
       
-      if (currentQuestion < QUIZ_QUESTIONS.length - 1) {
+      if (currentQuestion < quizQuestions.length - 1) {
         setCurrentQuestion(currentQuestion + 1);
       } else {
         // Last question, submit
@@ -291,22 +134,41 @@ export default function CareerQuiz() {
   const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
-      const questionId = QUIZ_QUESTIONS[currentQuestion - 1].id;
+      const questionId = quizQuestions[currentQuestion - 1]?.id;
       setSelectedAnswer(responses[questionId] || "");
     }
   };
 
-  const progress = ((currentQuestion + 1) / QUIZ_QUESTIONS.length) * 100;
+  const progress = quizQuestions.length > 0 ? ((currentQuestion + 1) / quizQuestions.length) * 100 : 0;
 
   // Load saved response when navigating
   useEffect(() => {
-    const questionId = QUIZ_QUESTIONS[currentQuestion]?.id;
+    const questionId = quizQuestions[currentQuestion]?.id;
     if (questionId) {
       setSelectedAnswer(responses[questionId] || "");
     }
-  }, [currentQuestion]);
+  }, [currentQuestion, quizQuestions]);
 
-  if (quizResult && currentQuestion === QUIZ_QUESTIONS.length) {
+  // Show loading state while generating questions
+  if (isLoadingQuestions || quizQuestions.length === 0) {
+    return (
+      <DashboardLayout navItems={navItems}>
+        <div className="space-y-6 p-6">
+          <Card className="glass-hover">
+            <CardContent className="pt-6 text-center py-12">
+              <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+              <h3 className="text-xl font-semibold mb-2">Generating Your Personalized Quiz...</h3>
+              <p className="text-gray-400">
+                We're analyzing your profile to create questions tailored just for you
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (quizResult && currentQuestion === quizQuestions.length) {
     // Show results
     return (
       <DashboardLayout navItems={navItems}>
@@ -468,7 +330,7 @@ export default function CareerQuiz() {
     );
   }
 
-  const question = QUIZ_QUESTIONS[currentQuestion];
+  const question = quizQuestions[currentQuestion];
 
   return (
     <DashboardLayout navItems={navItems}>
@@ -486,8 +348,8 @@ export default function CareerQuiz() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <CardTitle>Question {currentQuestion + 1} of {QUIZ_QUESTIONS.length}</CardTitle>
-                <CardDescription>{question.category}</CardDescription>
+                <CardTitle>Question {currentQuestion + 1} of {quizQuestions.length}</CardTitle>
+                <CardDescription>{question?.category || "Career Assessment"}</CardDescription>
               </div>
               <div className="text-sm text-gray-400">
                 {Math.round(progress)}% Complete
@@ -497,10 +359,10 @@ export default function CareerQuiz() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold mb-6">{question.question}</h3>
+              <h3 className="text-xl font-semibold mb-6">{question?.question || "Loading question..."}</h3>
               <RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer}>
                 <div className="space-y-3">
-                  {question.options.map((option, idx) => (
+                  {question?.options?.map((option: string, idx: number) => (
                     <div key={idx} className="flex items-center space-x-2 p-4 rounded-lg glass hover:bg-primary/10 cursor-pointer">
                       <RadioGroupItem value={option} id={`option-${idx}`} />
                       <Label htmlFor={`option-${idx}`} className="flex-1 cursor-pointer">
@@ -523,9 +385,9 @@ export default function CareerQuiz() {
               <Button
                 className="gradient-primary"
                 onClick={handleNext}
-                disabled={!selectedAnswer || submitQuizMutation.isPending}
+                disabled={!selectedAnswer || submitQuizMutation.isPending || !question}
               >
-                {currentQuestion === QUIZ_QUESTIONS.length - 1 
+                {currentQuestion === quizQuestions.length - 1 
                   ? (submitQuizMutation.isPending ? "Submitting..." : "Submit Quiz")
                   : "Next"}
               </Button>
