@@ -18,6 +18,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
+import html2pdf from "html2pdf.js";
 
 export default function CareerReport() {
   const { user } = useAuth();
@@ -157,6 +158,83 @@ export default function CareerReport() {
     { title: "30/60/90-Day Action Plan", icon: CheckCircle2, completed: true }
   ];
 
+  // Function to download report as PDF
+  const downloadReportAsPDF = async () => {
+    if (!reportUrl) return;
+    
+    try {
+      toast.loading("Converting report to PDF...", { id: "pdf-conversion" });
+      
+      // Fetch the HTML content
+      const response = await fetch(reportUrl);
+      if (!response.ok) {
+        throw new Error("Failed to fetch report");
+      }
+      const htmlContent = await response.text();
+      
+      // Create a temporary iframe to render the HTML properly
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "210mm"; // A4 width
+      iframe.style.height = "297mm"; // A4 height
+      document.body.appendChild(iframe);
+      
+      // Write HTML to iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error("Failed to access iframe document");
+      }
+      iframeDoc.open();
+      iframeDoc.write(htmlContent);
+      iframeDoc.close();
+      
+      // Wait for content to load
+      await new Promise((resolve) => {
+        if (iframe.contentWindow) {
+          iframe.contentWindow.onload = resolve;
+          setTimeout(resolve, 1000); // Fallback timeout
+        } else {
+          resolve(undefined);
+        }
+      });
+      
+      // Get the body element from iframe
+      const element = iframeDoc.body;
+      
+      // Configure PDF options
+      const opt = {
+        margin: [10, 10, 10, 10] as [number, number, number, number],
+        filename: `career-report-${user?.id}-${Date.now()}.pdf`,
+        image: { type: "jpeg" as const, quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 800
+        },
+        jsPDF: { 
+          unit: "mm" as const, 
+          format: "a4" as const, 
+          orientation: "portrait" as const
+        }
+      };
+      
+      // Convert to PDF and download
+      await (html2pdf as any)().set(opt).from(element).save();
+      
+      // Clean up
+      document.body.removeChild(iframe);
+      
+      toast.success("PDF downloaded successfully!", { id: "pdf-conversion" });
+    } catch (error: any) {
+      console.error("Error downloading PDF:", error);
+      toast.error("Failed to download PDF. Opening HTML instead...", { id: "pdf-conversion" });
+      // Fallback to opening HTML
+      window.open(reportUrl, "_blank");
+    }
+  };
+
   return (
     <DashboardLayout navItems={navItems}>
       <div className="space-y-6 p-6">
@@ -232,7 +310,7 @@ export default function CareerReport() {
                   <div className="flex flex-col gap-2">
                     <Button
                       className="w-full gradient-primary glow-primary"
-                      onClick={() => window.open(reportUrl, "_blank")}
+                      onClick={downloadReportAsPDF}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Download PDF
@@ -325,14 +403,10 @@ export default function CareerReport() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-secondary mb-1">
-                    {resume && resume.analysis_result 
-                      ? (resume.ats_score ?? 0)
-                      : resume 
-                        ? "N/A"
-                        : 0}
+                    {(resume as any)?.ats_score ?? 0}
                   </div>
                   <div className="text-sm text-gray-400">Resume Score</div>
-                  {resume && !resume.analysis_result && (
+                  {resume && !(resume as any)?.ats_score && (
                     <div className="text-xs text-yellow-500 mt-1">
                       Resume not analyzed yet
                     </div>
