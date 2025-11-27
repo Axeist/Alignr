@@ -12,18 +12,37 @@ import { useColleges } from "@/hooks/useColleges";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, Save, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, Lock, GraduationCap, MapPin } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { collegeCategories, getCollegesByCategory, type CollegeCategory } from "@/lib/colleges";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 
+interface ProfileData {
+  user_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  bio: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  year: number | null;
+  department: string | null;
+  college_id: string | null;
+  college: {
+    id: string;
+    name: string;
+    location: string | null;
+  } | null;
+}
+
 export default function StudentProfile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { staticColleges, getStaticCollegeIdForDbCollege, getCollegeById, findOrCreateCollege } = useColleges();
+  const { staticColleges, getCollegeById, findOrCreateCollege, findStaticCollegeByName } = useColleges();
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -47,12 +66,13 @@ export default function StudentProfile() {
     { label: "Leaderboard", href: "/student/leaderboard" },
   ];
 
-  // Fetch profile data
+  // Fetch profile data with college information
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<ProfileData | null> => {
       if (!user) return null;
-      // Fetch profile with college data
+      
+      // First fetch the profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -61,51 +81,56 @@ export default function StudentProfile() {
       
       if (profileError) throw profileError;
       
-      // If college_id exists, fetch college details
+      // If college_id exists, fetch college details separately
       let collegeData = null;
-      const collegeId = (profileData as any)?.college_id;
-      if (collegeId) {
-        // Try to fetch college - use multiple methods for reliability
+      if (profileData?.college_id) {
         const { data: college, error: collegeError } = await supabase
           .from("colleges")
-          .select("*")
-          .eq("id", collegeId)
+          .select("id, name, location")
+          .eq("id", profileData.college_id)
           .single();
         
         if (!collegeError && college) {
           collegeData = college;
-        } else {
-          // If direct fetch failed, try case-insensitive search by ID or name
-          console.warn("Failed to fetch college by ID, attempting alternative methods");
         }
       }
       
       return {
-        ...profileData,
+        user_id: profileData.user_id,
+        full_name: profileData.full_name || "",
+        email: profileData.email || "",
+        phone: profileData.phone || null,
+        bio: profileData.bio || null,
+        linkedin_url: profileData.linkedin_url || null,
+        github_url: profileData.github_url || null,
+        portfolio_url: profileData.portfolio_url || null,
+        year: (profileData as any).year || null,
+        department: (profileData as any).department || null,
+        college_id: profileData.college_id || null,
         college: collegeData,
-      } as any;
+      };
     },
     enabled: !!user,
   });
 
-  // Track selected college for display (using static college ID)
+  // Track selected college for the dropdown (using static college ID)
   const [selectedCollege, setSelectedCollege] = useState<string>("");
   
-  // Update selected college when profile changes - properly match database college with static list
+  // Update selected college when profile changes - find matching static college
   useEffect(() => {
     if (profile?.college) {
-      // Use the helper function to match database college with static list
-      const staticCollegeId = getStaticCollegeIdForDbCollege(profile.college);
-      setSelectedCollege(staticCollegeId);
-    } else if (profile?.college_id) {
-      // If college_id exists but college data is missing, try to find it in static list by ID
-      // This handles cases where college was saved but fetch failed
-      setSelectedCollege("");
+      // Try to find a matching static college by name
+      const matchingStaticCollege = findStaticCollegeByName(profile.college.name);
+      if (matchingStaticCollege) {
+        setSelectedCollege(matchingStaticCollege.id);
+      } else {
+        // If no match found in static list, clear selection (will show database college name)
+        setSelectedCollege("");
+      }
     } else {
       setSelectedCollege("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile]);
+  }, [profile, findStaticCollegeByName]);
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
@@ -264,8 +289,8 @@ export default function StudentProfile() {
         linkedin_url: profile.linkedin_url || "",
         github_url: profile.github_url || "",
         portfolio_url: profile.portfolio_url || "",
-        year: (profile as any).year || undefined,
-        department: (profile as any).department || "",
+        year: profile.year || undefined,
+        department: profile.department || "",
       });
     }
   }, [profile]);
@@ -273,6 +298,22 @@ export default function StudentProfile() {
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     updateProfileMutation.mutate(formData);
+  };
+
+  // Get the display name for the current college
+  const getCurrentCollegeDisplayName = () => {
+    // If we have a selected college from the static list
+    if (selectedCollege) {
+      const staticCollege = getCollegeById(selectedCollege);
+      if (staticCollege) return staticCollege.name;
+    }
+    
+    // Otherwise, use the database college name directly
+    if (profile?.college?.name) {
+      return profile.college.name;
+    }
+    
+    return "Select college...";
   };
 
   if (isLoading) {
@@ -440,118 +481,132 @@ export default function StudentProfile() {
                 <CardTitle>College Information</CardTitle>
                 <CardDescription>Select or change your college</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>College Category</Label>
-                  <Select
-                    value={collegeCategoryFilter}
-                    onValueChange={(value) => setCollegeCategoryFilter(value as CollegeCategory | "all")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {collegeCategories.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Select College</Label>
-                  <Popover open={collegeSearchOpen} onOpenChange={setCollegeSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={collegeSearchOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedCollege
-                          ? getCollegeById(selectedCollege)?.name || profile?.college?.name || "Select college..."
-                          : profile?.college?.name || "Select college..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search college..." />
-                        <CommandList>
-                          <CommandEmpty>No college found.</CommandEmpty>
-                          {(() => {
-                            const filteredColleges = collegeCategoryFilter === "all"
-                              ? staticColleges
-                              : getCollegesByCategory(collegeCategoryFilter);
-                            
-                            const grouped = filteredColleges.reduce((acc, college) => {
-                              if (!acc[college.category]) {
-                                acc[college.category] = [];
-                              }
-                              acc[college.category].push(college);
-                              return acc;
-                            }, {} as Record<CollegeCategory, typeof staticColleges>);
-                            
-                            return Object.entries(grouped).map(([category, categoryColleges]) => {
-                              const categoryLabel = collegeCategories.find(c => c.value === category)?.label || category;
-                              return (
-                                <CommandGroup key={category} heading={categoryLabel}>
-                                  {categoryColleges.map((college) => (
-                                    <CommandItem
-                                      key={college.id}
-                                      value={`${college.name} ${college.location} ${college.state}`}
-                                      onSelect={() => {
-                                        setSelectedCollege(college.id);
-                                        updateCollegeMutation.mutate(college.id);
-                                        setCollegeSearchOpen(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          selectedCollege === college.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      <div className="flex flex-col">
-                                        <span>{college.name}</span>
-                                        <span className="text-xs text-gray-500">{college.location}, {college.state}</span>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              );
-                            });
-                          })()}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {updateCollegeMutation.isPending && (
-                    <p className="text-sm text-gray-500 flex items-center">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating college...
-                    </p>
-                  )}
-                </div>
-
-                {(profile?.college || profile?.college_id) && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Current College</h4>
-                    {profile.college ? (
-                      <>
-                        <p className="text-sm">{profile.college.name}</p>
+              <CardContent className="space-y-6">
+                {/* Current College Display - Always show if we have college data */}
+                {profile?.college && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <GraduationCap className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">Current College</h4>
+                        <p className="text-lg font-medium text-blue-700">{profile.college.name}</p>
                         {profile.college.location && (
-                          <p className="text-sm text-gray-500">{profile.college.location}</p>
+                          <div className="flex items-center gap-1 mt-1 text-gray-600">
+                            <MapPin className="h-4 w-4" />
+                            <span className="text-sm">{profile.college.location}</span>
+                          </div>
                         )}
-                      </>
-                    ) : profile.college_id ? (
-                      <p className="text-sm text-gray-600">College ID: {profile.college_id}</p>
-                    ) : null}
+                      </div>
+                    </div>
                   </div>
                 )}
+
+                {/* Show message if no college is set */}
+                {!profile?.college && !profile?.college_id && (
+                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-yellow-800 text-sm">
+                      No college is currently set. Please select your college below.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>College Category</Label>
+                    <Select
+                      value={collegeCategoryFilter}
+                      onValueChange={(value) => setCollegeCategoryFilter(value as CollegeCategory | "all")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {collegeCategories.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Select College</Label>
+                    <Popover open={collegeSearchOpen} onOpenChange={setCollegeSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={collegeSearchOpen}
+                          className="w-full justify-between"
+                        >
+                          {getCurrentCollegeDisplayName()}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search college..." />
+                          <CommandList>
+                            <CommandEmpty>No college found.</CommandEmpty>
+                            {(() => {
+                              const filteredColleges = collegeCategoryFilter === "all"
+                                ? staticColleges
+                                : getCollegesByCategory(collegeCategoryFilter);
+                              
+                              const grouped = filteredColleges.reduce((acc, college) => {
+                                if (!acc[college.category]) {
+                                  acc[college.category] = [];
+                                }
+                                acc[college.category].push(college);
+                                return acc;
+                              }, {} as Record<CollegeCategory, typeof staticColleges>);
+                              
+                              return Object.entries(grouped).map(([category, categoryColleges]) => {
+                                const categoryLabel = collegeCategories.find(c => c.value === category)?.label || category;
+                                return (
+                                  <CommandGroup key={category} heading={categoryLabel}>
+                                    {categoryColleges.map((college) => (
+                                      <CommandItem
+                                        key={college.id}
+                                        value={`${college.name} ${college.location} ${college.state}`}
+                                        onSelect={() => {
+                                          setSelectedCollege(college.id);
+                                          updateCollegeMutation.mutate(college.id);
+                                          setCollegeSearchOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selectedCollege === college.id ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <div className="flex flex-col">
+                                          <span>{college.name}</span>
+                                          <span className="text-xs text-gray-500">{college.location}, {college.state}</span>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                );
+                              });
+                            })()}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {updateCollegeMutation.isPending && (
+                      <p className="text-sm text-gray-500 flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating college...
+                      </p>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
