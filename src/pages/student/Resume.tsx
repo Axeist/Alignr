@@ -6,6 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +32,9 @@ import {
   Download,
   SlidersHorizontal,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Trash2,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +49,9 @@ export default function ResumeBuilder() {
   const [comparingVersions, setComparingVersions] = useState(false);
   const [version1, setVersion1] = useState<string | null>(null);
   const [version2, setVersion2] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -133,6 +148,139 @@ export default function ResumeBuilder() {
     }
   });
 
+  // Delete resume mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (resumeId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      const resume = resumes?.find(r => r.id === resumeId);
+      if (!resume) throw new Error("Resume not found");
+
+      // Extract file path from URL
+      // URL format: https://[project].supabase.co/storage/v1/object/public/resumes/[path]
+      // Try multiple methods to extract the path
+      let filePath: string | null = null;
+      try {
+        const url = new URL(resume.file_url);
+        // Extract path after /resumes/
+        const pathMatch = url.pathname.match(/\/resumes\/(.+)$/);
+        if (pathMatch) {
+          filePath = pathMatch[1];
+        } else {
+          // Fallback: split method
+          const urlParts = resume.file_url.split('/resumes/');
+          filePath = urlParts.length > 1 ? urlParts[1].split('?')[0] : null;
+        }
+      } catch {
+        // If URL parsing fails, try simple split
+        const urlParts = resume.file_url.split('/resumes/');
+        filePath = urlParts.length > 1 ? urlParts[1].split('?')[0] : null;
+      }
+
+      // Delete from storage if file path exists
+      if (filePath) {
+        const { error: storageError } = await supabase.storage
+          .from("resumes")
+          .remove([filePath]);
+        
+        if (storageError) {
+          console.error("Storage delete error:", storageError);
+          // Continue with DB deletion even if storage deletion fails
+        }
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from("resumes")
+        .delete()
+        .eq("id", resumeId);
+
+      if (error) throw error;
+
+      // If deleted resume was primary and there are other resumes, set another as primary
+      if (resume.is_primary && resumes && resumes.length > 1) {
+        const otherResumes = resumes.filter(r => r.id !== resumeId);
+        if (otherResumes.length > 0) {
+          await supabase
+            .from("resumes")
+            .update({ is_primary: true })
+            .eq("id", otherResumes[0].id);
+        }
+      }
+
+      return resumeId;
+    },
+    onSuccess: () => {
+      toast.success("Resume deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      setDeleteDialogOpen(false);
+      setResumeToDelete(null);
+      // Reset selected resume if it was deleted
+      if (selectedResume === resumeToDelete) {
+        setSelectedResume(null);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to delete resume");
+    }
+  });
+
+  // Delete all resumes mutation
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!user || !resumes || resumes.length === 0) throw new Error("No resumes to delete");
+
+      // Delete all files from storage
+      const filePaths = resumes
+        .map(resume => {
+          try {
+            const url = new URL(resume.file_url);
+            const pathMatch = url.pathname.match(/\/resumes\/(.+)$/);
+            if (pathMatch) {
+              return pathMatch[1];
+            } else {
+              const urlParts = resume.file_url.split('/resumes/');
+              return urlParts.length > 1 ? urlParts[1].split('?')[0] : null;
+            }
+          } catch {
+            const urlParts = resume.file_url.split('/resumes/');
+            return urlParts.length > 1 ? urlParts[1].split('?')[0] : null;
+          }
+        })
+        .filter((path): path is string => path !== null);
+
+      if (filePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("resumes")
+          .remove(filePaths);
+        
+        if (storageError) {
+          console.error("Storage delete error:", storageError);
+          // Continue with DB deletion even if storage deletion fails
+        }
+      }
+
+      // Delete all from database
+      const { error } = await supabase
+        .from("resumes")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      return true;
+    },
+    onSuccess: () => {
+      toast.success("All resumes deleted. You can start fresh!");
+      queryClient.invalidateQueries({ queryKey: ["resumes", user?.id] });
+      setDeleteAllDialogOpen(false);
+      setSelectedResume(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to delete resumes");
+    }
+  });
+
   // AI Rewrite mutation
   const rewriteMutation = useMutation({
     mutationFn: async (originalText: string) => {
@@ -224,17 +372,46 @@ export default function ResumeBuilder() {
             {resumes && resumes.length > 0 && (
               <Card className="glass-hover">
                 <CardHeader>
-                  <CardTitle>Resume Versions</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Resume Versions</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDeleteAllDialogOpen(true)}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete All
+                    </Button>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Tabs value={selectedResume || primaryResume?.id || ""} onValueChange={setSelectedResume}>
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${resumes.length}, 1fr)` }}>
                       {resumes.map((resume) => (
-                        <TabsTrigger key={resume.id} value={resume.id}>
-                          {resume.version_label}
-                          {resume.is_primary && (
-                            <Badge className="ml-2" variant="secondary">Primary</Badge>
-                          )}
+                        <TabsTrigger 
+                          key={resume.id} 
+                          value={resume.id}
+                          className="relative group"
+                        >
+                          <span className="flex items-center gap-2">
+                            {resume.version_label}
+                            {resume.is_primary && (
+                              <Badge className="ml-1" variant="secondary">Primary</Badge>
+                            )}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setResumeToDelete(resume.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
                         </TabsTrigger>
                       ))}
                     </TabsList>
@@ -275,15 +452,28 @@ export default function ResumeBuilder() {
                     <Progress value={50} className="mt-4" />
                   )}
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full mt-4"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  New Version
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    New Version
+                  </Button>
+                  {resumes && resumes.length > 0 && (
+                    <Button
+                      variant="outline"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/50"
+                      onClick={() => setDeleteAllDialogOpen(true)}
+                      disabled={uploading || deleteAllMutation.isPending}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Start Fresh
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -600,6 +790,60 @@ export default function ResumeBuilder() {
           </div>
         </div>
       </div>
+
+      {/* Delete Single Resume Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this resume? This action cannot be undone.
+              {resumeToDelete && resumes?.find(r => r.id === resumeToDelete)?.is_primary && (
+                <span className="block mt-2 text-amber-400">
+                  This is your primary resume. Another resume will be set as primary if available.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (resumeToDelete) {
+                  deleteMutation.mutate(resumeToDelete);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Resumes Dialog */}
+      <AlertDialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Resumes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete all {resumes?.length || 0} resume(s)? This action cannot be undone.
+              You will be able to upload new resumes after deletion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAllMutation.mutate()}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteAllMutation.isPending}
+            >
+              {deleteAllMutation.isPending ? "Deleting..." : "Delete All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
