@@ -149,15 +149,18 @@ export function useAuth() {
         }
 
         // Use the database function to create profile and role (bypasses RLS issues)
-        const { error: functionError } = await supabase.rpc('create_user_profile', {
+        // Now includes college_id as a parameter for atomic creation
+        const { error: functionError } = await (supabase.rpc as any)('create_user_profile', {
           p_user_id: data.user.id,
           p_full_name: fullName,
           p_email: email,
-          p_role: role
+          p_role: role,
+          p_college_id: collegeDbId, // Pass college_id directly to the RPC
         });
 
         if (functionError) {
-          // Fallback to direct inserts if function doesn't exist
+          console.error("Error calling create_user_profile RPC:", functionError);
+          // Fallback to direct inserts if function doesn't exist or fails
           const { error: profileError } = await supabase
             .from("profiles")
             .insert({
@@ -178,37 +181,16 @@ export function useAuth() {
             });
 
           if (roleError) throw roleError;
-        } else {
-          // Update profile with college_id if function succeeded
-          if (collegeDbId) {
-            const { error: updateError } = await supabase
-              .from("profiles")
-              .update({ college_id: collegeDbId })
-              .eq("user_id", data.user.id);
-            
-            if (updateError) {
-              console.error("Error updating profile with college_id:", updateError);
-              // Try alternative method using RPC function
-              try {
-                await supabase.rpc("update_profile_college", {
-                  p_user_id: data.user.id,
-                  p_college_id: collegeDbId,
-                  p_role: role,
-                });
-              } catch (rpcError) {
-                console.error("Error updating college via RPC:", rpcError);
-              }
-            }
+          
+          // For college role, update the college's admin_id
+          if (role === "college" && collegeDbId) {
+            await supabase
+              .from("colleges")
+              .update({ admin_id: data.user.id })
+              .eq("id", collegeDbId);
           }
         }
-
-        // For college role, update the college's admin_id
-        if (role === "college" && collegeDbId) {
-          await supabase
-            .from("colleges")
-            .update({ admin_id: data.user.id })
-            .eq("id", collegeDbId);
-        }
+        // Note: The RPC function now handles college_id and admin_id update atomically
 
         toast({
           title: "Success",
