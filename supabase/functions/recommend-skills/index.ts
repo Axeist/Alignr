@@ -160,26 +160,51 @@ Interests: ${userInterests.join(", ")}`;
     // Get college_id from profile
     const collegeId = profile?.college_id || null;
 
-    // Save recommendations
-    const { data: skillsData, error: skillsError } = await supabaseClient
+    // Save recommendations - first try to update existing, then insert if not found
+    const { data: existing } = await supabaseClient
       .from("skills_recommendations")
-      .upsert({
-        user_id,
-        college_id: collegeId,
-        target_role: role,
-        recommended_skills: recommendations.recommended_skills || [],
-        skill_gaps: recommendations.skill_gaps || [],
-        learning_resources: recommendations.learning_resources || [],
-        priority_skills: recommendations.priority_skills || []
-      }, {
-        onConflict: "user_id"
-      })
-      .select()
-      .single();
+      .select("id")
+      .eq("user_id", user_id)
+      .eq("target_role", role)
+      .maybeSingle();
 
-    if (skillsError) {
-      console.error("Error saving skills recommendations:", skillsError);
+    let skillsData;
+    if (existing) {
+      const { data, error } = await supabaseClient
+        .from("skills_recommendations")
+        .update({
+          recommended_skills: recommendations.recommended_skills || [],
+          skill_gaps: recommendations.skill_gaps || [],
+          learning_resources: recommendations.learning_resources || [],
+          priority_skills: recommendations.priority_skills || []
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      skillsData = data;
+      if (error) {
+        console.error("Error updating skills recommendations:", error);
+      }
+    } else {
+      const { data, error } = await supabaseClient
+        .from("skills_recommendations")
+        .insert({
+          user_id,
+          college_id: collegeId,
+          target_role: role,
+          recommended_skills: recommendations.recommended_skills || [],
+          skill_gaps: recommendations.skill_gaps || [],
+          learning_resources: recommendations.learning_resources || [],
+          priority_skills: recommendations.priority_skills || []
+        })
+        .select()
+        .single();
+      skillsData = data;
+      if (error) {
+        console.error("Error inserting skills recommendations:", error);
+      }
     }
+
 
     return new Response(
       JSON.stringify({
