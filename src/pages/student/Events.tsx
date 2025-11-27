@@ -53,6 +53,8 @@ export default function Events() {
   const { data: events, isLoading } = useQuery({
     queryKey: ["events", profile?.college_id, eventTypeFilter],
     queryFn: async () => {
+      if (!profile) return [];
+
       let query = supabase
         .from("college_events")
         .select("*, colleges(name)")
@@ -61,6 +63,7 @@ export default function Events() {
       // Filter events: show events from student's college OR events without college restriction (college_id is null)
       if (profile?.college_id) {
         // If student has a college_id, show events for their college OR open events (null college_id)
+        // Use proper UUID format in the query
         query = query.or(`college_id.is.null,college_id.eq.${profile.college_id}`);
       } else {
         // If student doesn't have a college_id, only show open events
@@ -70,8 +73,24 @@ export default function Events() {
       const { data, error } = await query
         .order("event_date", { ascending: true });
 
-      if (error) throw error;
-      return data || [];
+      if (error) {
+        console.error("Error fetching events:", error);
+        throw error;
+      }
+      
+      // Additional client-side validation: ensure college_id matches if set
+      const filtered = (data || []).filter((event: any) => {
+        // If event has no college_id, it's open to all - show it
+        if (!event.college_id) return true;
+        // If student has college_id, only show events matching their college
+        if (profile?.college_id) {
+          return event.college_id === profile.college_id;
+        }
+        // If student has no college_id, don't show college-specific events
+        return false;
+      });
+
+      return filtered;
     },
     enabled: !!user && profile !== undefined,
   });

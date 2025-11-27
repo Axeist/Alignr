@@ -92,17 +92,32 @@ export default function CollegeEvents() {
 
   const createEventMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!user || !collegeId) throw new Error("Not authenticated or college not found");
+      if (!user || !collegeId) {
+        console.error("Missing user or collegeId:", { user: !!user, collegeId });
+        throw new Error("Not authenticated or college not found");
+      }
+      
+      // Ensure college_id is a valid UUID string
+      const eventData = {
+        ...data,
+        organizer_id: user.id,
+        college_id: collegeId,
+      };
+      
+      console.log("Creating event with data:", { ...eventData, description: data.description?.substring(0, 50) });
+      
       const { data: event, error } = await supabase
         .from("college_events")
-        .insert({
-          ...data,
-          organizer_id: user.id,
-          college_id: collegeId,
-        })
+        .insert(eventData)
         .select()
         .single();
-      if (error) throw error;
+        
+      if (error) {
+        console.error("Error creating event:", error);
+        throw error;
+      }
+      
+      console.log("Event created successfully:", { id: event.id, college_id: event.college_id });
       return event;
     },
     onSuccess: () => {

@@ -73,6 +73,33 @@ export default function PostJob() {
     },
   });
 
+  // Helper function to get college_id by name (ensures consistency)
+  const getCollegeIdByName = async (collegeName: string): Promise<string | null> => {
+    if (!collegeName) return null;
+    
+    // Use find_or_create_college to ensure we get the same college_id
+    const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
+      'find_or_create_college',
+      {
+        p_name: collegeName,
+        p_location: "",
+      }
+    );
+
+    if (!functionError && collegeDbId) {
+      return collegeDbId as string;
+    }
+
+    // Fallback: find by name (case-insensitive)
+    const { data: existingCollege } = await supabase
+      .from("colleges")
+      .select("id")
+      .ilike("name", collegeName)
+      .maybeSingle();
+
+    return existingCollege?.id || null;
+  };
+
   // Fetch job data if in edit mode
   const { data: jobData, isLoading: isLoadingJob } = useQuery({
     queryKey: ["job", editJobId],
@@ -110,6 +137,7 @@ export default function PostJob() {
   // Set default college_id from profile
   useEffect(() => {
     if (profile?.college_id && !formData.college_id) {
+      // Use the profile's college_id which should already be correct (set via find_or_create_college)
       setFormData(prev => ({ ...prev, college_id: profile.college_id }));
     }
   }, [profile?.college_id]);
@@ -117,6 +145,35 @@ export default function PostJob() {
   const postJobMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!user) throw new Error("Not authenticated");
+
+      // Ensure college_id is correct - if a college is selected, verify it matches
+      let finalCollegeId: string | null = null;
+      if (data.college_id && data.college_id !== "all") {
+        // Get the college name from the selected college_id
+        const selectedCollege = colleges?.find(c => c.id === data.college_id);
+        if (selectedCollege) {
+          // Use find_or_create_college to ensure we get the correct college_id
+          // This ensures consistency with student profiles
+          const correctCollegeId = await getCollegeIdByName(selectedCollege.name);
+          finalCollegeId = correctCollegeId || data.college_id;
+          console.log("Job posting - College selected:", {
+            selectedId: data.college_id,
+            collegeName: selectedCollege.name,
+            correctId: finalCollegeId,
+            match: data.college_id === finalCollegeId
+          });
+        } else {
+          finalCollegeId = data.college_id;
+        }
+      }
+
+      // If no college selected but alumni has a college_id in profile, use that
+      if (!finalCollegeId && profile?.college_id) {
+        finalCollegeId = profile.college_id;
+        console.log("Job posting - Using profile college_id:", finalCollegeId);
+      }
+
+      console.log("Job posting - Final college_id:", finalCollegeId);
 
       if (isEditMode && editJobId) {
         // Update existing job
@@ -131,7 +188,7 @@ export default function PostJob() {
             job_type: data.job_type,
             experience_level: data.experience_level,
             salary_range: data.salary_range,
-            college_id: data.college_id || null,
+            college_id: finalCollegeId,
             updated_at: new Date().toISOString(),
             // Reset status to pending if job was edited (may need re-approval)
             status: "pending",
@@ -157,7 +214,7 @@ export default function PostJob() {
             experience_level: data.experience_level,
             salary_range: data.salary_range,
             posted_by: user.id,
-            college_id: data.college_id || null,
+            college_id: finalCollegeId,
             status: "pending", // Needs college approval
           })
           .select()

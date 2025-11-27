@@ -116,33 +116,48 @@ export default function CollegeProfile() {
     if (!user) return;
     
     try {
-      // First try to find existing college
-      const { data: existingCollege } = await supabase
-        .from("colleges")
-        .select("id")
-        .ilike("name", collegeName)
-        .single();
-      
+      // Use the same find_or_create_college function that students use
+      // This ensures we get the same college_id for the same college name
+      const { data: collegeDbId, error: functionError } = await (supabase.rpc as any)(
+        'find_or_create_college',
+        {
+          p_name: collegeName,
+          p_location: location || "",
+        }
+      );
+
       let collegeId: string;
-      
-      if (existingCollege) {
-        collegeId = existingCollege.id;
+
+      if (!functionError && collegeDbId) {
+        // Function worked, use its result
+        collegeId = collegeDbId as string;
       } else {
-        // Create new college
-        const { data: newCollege, error: createError } = await supabase
+        // Fallback: try to find existing college using case-insensitive match
+        const { data: existingCollege } = await supabase
           .from("colleges")
-          .insert({
-            name: collegeName,
-            location: location || "",
-          })
           .select("id")
-          .single();
+          .ilike("name", collegeName)
+          .maybeSingle();
         
-        if (createError) throw createError;
-        collegeId = newCollege.id;
+        if (existingCollege) {
+          collegeId = existingCollege.id;
+        } else {
+          // Create new college
+          const { data: newCollege, error: createError } = await supabase
+            .from("colleges")
+            .insert({
+              name: collegeName,
+              location: location || "",
+            })
+            .select("id")
+            .single();
+          
+          if (createError) throw createError;
+          collegeId = newCollege.id;
+        }
       }
       
-      // Update profile with college
+      // Update profile with college using the RPC function
       const { error: updateError } = await supabase.rpc("update_profile_college", {
         p_user_id: user.id,
         p_college_id: collegeId,
@@ -155,6 +170,7 @@ export default function CollegeProfile() {
       setFormData({ ...formData, college_id: collegeId });
       
       queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["college-profile", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["db-colleges"] });
       
       toast({
