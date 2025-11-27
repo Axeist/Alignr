@@ -47,6 +47,12 @@ CREATE POLICY "Students can view college pending jobs" ON public.jobs
     AND college_id = public.get_user_college_id(auth.uid())
   );
 
+-- Policy 5: Alumni can delete their own jobs
+DROP POLICY IF EXISTS "Alumni can delete own jobs" ON public.jobs;
+CREATE POLICY "Alumni can delete own jobs" ON public.jobs 
+  FOR DELETE 
+  USING (posted_by = auth.uid());
+
 -- Note: To apply this migration, run it in the Supabase SQL Editor
 -- Or use: supabase db push
 

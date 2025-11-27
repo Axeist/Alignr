@@ -88,11 +88,24 @@ export default function AlumniJobs() {
 
   const deleteJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
-      const { error } = await supabase
+      if (!user) throw new Error("Not authenticated");
+      
+      // Delete the job and verify it was actually deleted
+      const { data, error } = await supabase
         .from("jobs")
         .delete()
-        .eq("id", jobId);
+        .eq("id", jobId)
+        .eq("posted_by", user.id) // Ensure user owns the job
+        .select();
+      
       if (error) throw error;
+      
+      // Check if any rows were deleted
+      if (!data || data.length === 0) {
+        throw new Error("Failed to delete job. You may not have permission to delete this job.");
+      }
+      
+      return data;
     },
     onSuccess: () => {
       toast({
