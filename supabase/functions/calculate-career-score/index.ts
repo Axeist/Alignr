@@ -36,36 +36,34 @@ serve(async (req) => {
     );
 
     // Fetch all relevant data
-    const [profileResult, resumeResult, linkedinResult, skillPathResult, applicationsResult] = await Promise.all([
+    const [profileResult, resumeResult, linkedinResult, applicationsResult] = await Promise.all([
       supabaseClient.from("profiles").select("*").eq("user_id", user_id).single(),
       supabaseClient.from("resumes").select("*").eq("user_id", user_id).eq("is_primary", true).maybeSingle(),
       supabaseClient.from("linkedin_profiles").select("*").eq("user_id", user_id).maybeSingle(),
-      supabaseClient.from("skill_paths").select("*").eq("user_id", user_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabaseClient.from("applications").select("id").eq("user_id", user_id)
     ]);
 
     const profile = profileResult.data;
     const resume = resumeResult.data;
     const linkedin = linkedinResult.data;
-    const skillPath = skillPathResult.data;
     const applications = applicationsResult.data || [];
 
     // Calculate career score components
     const resumeScore = resume?.ats_score || 0;
     const linkedinScore = linkedin?.completeness_score || 0;
-    const skillPathProgress = skillPath?.progress_percentage || 0;
+    const quizScore = profile?.quiz_score || 0;
     
     // Activity score based on number of applications (capped at 10 applications = 100 points)
     const applicationCount = applications.length;
     const activityScore = Math.min(applicationCount * 10, 100);
 
     // Weighted calculation
-    // Resume: 40%, LinkedIn: 30%, Skill Path: 20%, Activity: 10%
+    // Resume: 35%, LinkedIn: 25%, Quiz: 25%, Activity: 15%
     const careerScore = Math.round(
-      (resumeScore * 0.4) +
-      (linkedinScore * 0.3) +
-      (skillPathProgress * 0.2) +
-      (activityScore * 0.1)
+      (resumeScore * 0.35) +
+      (linkedinScore * 0.25) +
+      (quizScore * 0.25) +
+      (activityScore * 0.15)
     );
 
     // Update profile with calculated career score
@@ -85,7 +83,7 @@ serve(async (req) => {
         breakdown: {
           resume_score: resumeScore,
           linkedin_score: linkedinScore,
-          skill_path_progress: skillPathProgress,
+          quiz_score: quizScore,
           activity_score: activityScore
         }
       }),

@@ -21,7 +21,10 @@ import {
   CheckSquare,
   Settings,
   UserCircle,
-  Mail
+  Mail,
+  Brain,
+  Target,
+  BookOpen
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -51,6 +54,9 @@ const iconMap: Record<string, React.ReactNode> = {
   "Skill Path": <TrendingUp className="h-5 w-5" />,
   "Skills": <TrendingUp className="h-5 w-5" />,
   "Career Report": <BarChart3 className="h-5 w-5" />,
+  "Career Quiz": <Brain className="h-5 w-5" />,
+  "Career Paths": <Target className="h-5 w-5" />,
+  "Skills Recommendations": <BookOpen className="h-5 w-5" />,
   "Events": <Calendar className="h-5 w-5" />,
   "Leaderboard": <Trophy className="h-5 w-5" />,
   "Students": <Users className="h-5 w-5" />,

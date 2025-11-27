@@ -58,8 +58,9 @@ export default function JobBoard() {
     { label: "LinkedIn", href: "/student/linkedin" },
     { label: "Job Board", href: "/student/jobs" },
     { label: "My Applications", href: "/student/applications" },
-    { label: "Skill Path", href: "/student/skills" },
-    { label: "Career Report", href: "/student/career-report" },
+    { label: "Career Quiz", href: "/student/career-quiz" },
+    { label: "Career Paths", href: "/student/career-paths" },
+    { label: "Skills", href: "/student/skills-recommendations" },
     { label: "Events", href: "/student/events" },
     { label: "Leaderboard", href: "/student/leaderboard" },
   ];
