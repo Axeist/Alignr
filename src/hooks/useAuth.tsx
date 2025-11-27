@@ -268,6 +268,58 @@ export function useAuth() {
     }
   };
 
+  const resetPasswordForEmail = async (email: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Check your email",
+        description: "We've sent a password reset link to your email address.",
+        variant: "success",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Your password has been updated successfully.",
+        variant: "success",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
   const getDashboardPath = (role: UserRole | null): string => {
     if (!role) return "/auth";
     const dashboardMap: Record<UserRole, string> = {
@@ -288,6 +340,8 @@ export function useAuth() {
     signIn,
     signInWithOAuth,
     signOut,
+    resetPasswordForEmail,
+    updatePassword,
     getDashboardPath,
     fetchUserRole,
   };

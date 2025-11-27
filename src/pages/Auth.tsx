@@ -244,7 +244,15 @@ export default function Auth() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password" className="text-gray-900">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="signin-password" className="text-gray-900">Password</Label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm text-[#0066FF] hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <PasswordInput
                     id="signin-password"
                     value={signInPassword}
