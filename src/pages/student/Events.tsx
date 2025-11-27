@@ -54,8 +54,8 @@ export default function Events() {
     queryKey: ["events", profile?.college_id, eventTypeFilter],
     queryFn: async () => {
       let query = supabase
-        .from("events")
-        .select("*, colleges(name), profiles!events_organizer_id_fkey(full_name)")
+        .from("college_events")
+        .select("*, colleges(name)")
         .gte("event_date", new Date().toISOString())
         .order("event_date", { ascending: true });
 

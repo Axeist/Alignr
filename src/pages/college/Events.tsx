@@ -80,7 +80,7 @@ export default function CollegeEvents() {
     queryFn: async () => {
       if (!collegeId) return [];
       const { data, error } = await supabase
-        .from("events")
+        .from("college_events")
         .select("*")
         .eq("college_id", collegeId)
         .order("event_date", { ascending: true });
@@ -94,7 +94,7 @@ export default function CollegeEvents() {
     mutationFn: async (data: typeof formData) => {
       if (!user || !collegeId) throw new Error("Not authenticated or college not found");
       const { data: event, error } = await supabase
-        .from("events")
+        .from("college_events")
         .insert({
           ...data,
           organizer_id: user.id,
@@ -126,7 +126,7 @@ export default function CollegeEvents() {
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
       const { error } = await supabase
-        .from("events")
+        .from("college_events")
         .delete()
         .eq("id", eventId);
       if (error) throw error;
