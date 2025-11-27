@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,6 +84,31 @@ export default function CareerReport() {
     },
     enabled: !!user
   });
+
+  // Automatically recalculate career score when resume has ATS score
+  useEffect(() => {
+    const recalculateCareerScore = async () => {
+      if (!user) return;
+      
+      // Type assertion for resume - the ats_score exists at runtime even if types don't reflect it
+      const resumeWithScore = resume as any;
+      if (!resumeWithScore?.ats_score) return;
+      
+      // Only recalculate if resume has an ATS score but career score might be outdated
+      // This ensures the career score reflects the current resume score
+      try {
+        await supabase.functions.invoke("calculate-career-score", {
+          body: { user_id: user.id }
+        });
+        // Refresh profile to get updated career score
+        queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+      } catch (e) {
+        console.warn("Failed to recalculate career score:", e);
+      }
+    };
+
+    recalculateCareerScore();
+  }, [user?.id, resume, queryClient]);
 
   // Generate report mutation
   const generateReportMutation = useMutation({
