@@ -63,20 +63,30 @@ serve(async (req) => {
     const linkedin = linkedinResult.data;
 
     // Build job query with filters
-    // Show jobs that are approved/active AND either:
-    // - Have no college_id (open to all colleges)
-    // - Match the student's college_id
-    let jobQuery = supabaseClient
-      .from("jobs")
-      .select("*")
-      .in("status", ["approved", "active"]);
-
-    // Filter by college: show jobs with no college_id (all colleges) or matching student's college
+    // Show jobs that are:
+    // 1. Approved/active jobs that are either open to all (no college_id) or match student's college
+    // 2. Pending jobs from the same college (so students can see jobs posted by alumni from their college immediately)
+    
+    let jobQuery;
+    
     if (profile?.college_id) {
-      jobQuery = jobQuery.or(`college_id.is.null,college_id.eq.${profile.college_id}`);
+      // Student has a college - show:
+      // - Approved/active jobs (no college_id OR matching college_id)
+      // - Pending jobs from the same college (alumni from same college)
+      jobQuery = supabaseClient
+        .from("jobs")
+        .select("*")
+        .or(
+          `and(status.in.(approved,active),or(college_id.is.null,college_id.eq.${profile.college_id})),` +
+          `and(status.eq.pending,college_id.eq.${profile.college_id})`
+        );
     } else {
-      // If student has no college, only show jobs with no college_id (open to all)
-      jobQuery = jobQuery.is("college_id", null);
+      // Student has no college - only show approved/active jobs with no college_id (open to all)
+      jobQuery = supabaseClient
+        .from("jobs")
+        .select("*")
+        .in("status", ["approved", "active"])
+        .is("college_id", null);
     }
 
     if (filters?.role) {
