@@ -3,11 +3,11 @@
 Write-Host "🚀 Deploying Alignr Edge Functions..." -ForegroundColor Cyan
 Write-Host ""
 
-# Set your Gemini API key
-$GEMINI_API_KEY = "AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA"
+# Set your Groq API key
+$GROQ_API_KEY = "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"
 
-Write-Host "📝 Setting Gemini API Key..." -ForegroundColor Yellow
-supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY"
+Write-Host "📝 Setting Groq API Key..." -ForegroundColor Yellow
+supabase secrets set GROQ_API_KEY="$GROQ_API_KEY"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Failed to set API key. Make sure you're logged in: supabase login" -ForegroundColor Red
@@ -50,6 +50,6 @@ Write-Host "   ✓ generate-career-report - Comprehensive career reports"
 Write-Host "   ✓ recommend-jobs - AI-powered job matching"
 Write-Host ""
 Write-Host "💡 All functions are optimized for minimal token usage" -ForegroundColor Yellow
-Write-Host "🔑 Using Gemini 2.0 Flash-Lite model" -ForegroundColor Yellow
+Write-Host "🔑 Using Groq (Llama 3.1 8B Instant) model" -ForegroundColor Yellow
 Write-Host ""
 

@@ -6,11 +6,11 @@
 echo "🚀 Deploying Alignr Edge Functions..."
 echo ""
 
-# Set your Gemini API key
-GEMINI_API_KEY="AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA"
+# Set your Groq API key
+GROQ_API_KEY="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"
 
-echo "📝 Setting Gemini API Key..."
-supabase secrets set GEMINI_API_KEY="$GEMINI_API_KEY"
+echo "📝 Setting Groq API Key..."
+supabase secrets set GROQ_API_KEY="$GROQ_API_KEY"
 
 if [ $? -ne 0 ]; then
   echo "❌ Failed to set API key. Make sure you're logged in: supabase login"
@@ -53,7 +53,7 @@ echo "   ✓ generate-career-report - Comprehensive career reports"
 echo "   ✓ recommend-jobs - AI-powered job matching"
 echo ""
 echo "💡 All functions are optimized for minimal token usage"
-echo "🔑 Using Gemini 2.0 Flash-Lite model"
+echo "🔑 Using Groq (Llama 3.1 8B Instant) model"
 echo ""
 echo "🧪 Test your functions at: https://your-project.supabase.co/functions/v1/"
 

@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,9 +32,9 @@ serve(async (req) => {
       );
     }
 
-    if (!GEMINI_API_KEY) {
+    if (!GROQ_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+        JSON.stringify({ error: "GROQ_API_KEY not configured" }),
         { 
           status: 500, 
           headers: { 
@@ -69,21 +69,31 @@ serve(async (req) => {
 Profile: ${profileContent}
 ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
 
-    const geminiResponse = await fetch(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
-        })
-      }
-    );
+    const groqResponse = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful assistant that returns only valid JSON. Always return valid JSON objects without markdown formatting."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      })
+    });
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
       let errorData;
       try {
         errorData = JSON.parse(errorText);
@@ -92,9 +102,9 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
       }
 
       // Handle specific error cases
-      if (geminiResponse.status === 429) {
+      if (groqResponse.status === 429) {
         const errorMessage = errorData?.error?.message || "API quota exceeded";
-        console.error("Gemini API quota exceeded:", errorMessage);
+        console.error("Groq API quota exceeded:", errorMessage);
         return new Response(
           JSON.stringify({ 
             error: "AI service is currently at capacity. Please try again later or contact support if this persists.",
@@ -111,7 +121,7 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
         );
       }
 
-      if (geminiResponse.status === 503 || geminiResponse.status === 502) {
+      if (groqResponse.status === 503 || groqResponse.status === 502) {
         return new Response(
           JSON.stringify({ 
             error: "AI service is temporarily unavailable. Please try again in a few moments.",
@@ -128,11 +138,11 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
       }
 
       // For other errors, throw with more context
-      throw new Error(`Gemini API error: ${geminiResponse.statusText} - ${errorData?.error?.message || errorText}`);
+      throw new Error(`Groq API error: ${groqResponse.statusText} - ${errorData?.error?.message || errorText}`);
     }
 
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const groqData = await groqResponse.json();
+    const responseText = groqData.choices?.[0]?.message?.content || "{}";
     
     // Parse JSON from response
     let analysisResult;
@@ -213,7 +223,7 @@ ${target_roles ? `Target: ${target_roles.join(", ")}` : ""}`;
     if (errorMessage.includes("quota") || errorMessage.includes("429")) {
       userMessage = "AI service is currently at capacity. Please try again later.";
       statusCode = 429;
-    } else if (errorMessage.includes("GEMINI_API_KEY")) {
+    } else if (errorMessage.includes("GROQ_API_KEY")) {
       userMessage = "AI service is not properly configured. Please contact support.";
       statusCode = 503;
     }

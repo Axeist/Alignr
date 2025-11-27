@@ -13,8 +13,8 @@ if ! npx supabase projects list &>/dev/null; then
 fi
 
 # Set API key
-echo "📝 Setting Gemini API Key..."
-npx supabase secrets set GEMINI_API_KEY="AIzaSyDzjqeRJOiI13CCaTYluewK9O-AHTxW8uA" --project-ref tkghwmabacbmpfyconyx
+echo "📝 Setting Groq API Key..."
+npx supabase secrets set GROQ_API_KEY="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" --project-ref tkghwmabacbmpfyconyx
 
 if [ $? -ne 0 ]; then
   echo "❌ Failed to set API key"
@@ -49,6 +49,6 @@ npx supabase functions deploy recommend-jobs --project-ref tkghwmabacbmpfyconyx
 echo ""
 echo "✅ Deployment complete!"
 echo ""
-echo "📊 All 6 functions deployed with Gemini 2.0 Flash-Lite"
+echo "📊 All 6 functions deployed with Groq (Llama 3.1 8B Instant)"
 echo "💡 Optimized for minimal token usage"
 

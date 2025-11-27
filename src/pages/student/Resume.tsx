@@ -114,8 +114,8 @@ export default function ResumeBuilder() {
         console.error("Analysis error:", analyzeError);
         // Check if it's a configuration error
         const errorMsg = analyzeError?.message || (analyzeData?.error || "");
-        if (errorMsg.includes("GEMINI_API_KEY")) {
-          toast.error("AI analysis failed: GEMINI_API_KEY not configured. Please contact support.");
+        if (errorMsg.includes("GROQ_API_KEY")) {
+          toast.error("AI analysis failed: GROQ_API_KEY not configured. Please contact support.");
         }
         // Don't throw - resume is uploaded even if analysis fails
       }
@@ -163,7 +163,7 @@ export default function ResumeBuilder() {
       toast.success("AI suggestions generated!");
     },
     onError: (error: any) => {
-      const errorMessage = error?.message || error?.error || "Failed to generate suggestions. Please check if GEMINI_API_KEY is configured.";
+      const errorMessage = error?.message || error?.error || "Failed to generate suggestions. Please check if GROQ_API_KEY is configured.";
       toast.error(errorMessage);
       console.error("Rewrite error:", error);
     }
