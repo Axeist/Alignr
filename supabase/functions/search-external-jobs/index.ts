@@ -306,6 +306,22 @@ serve(async (req) => {
     // Sort by match score
     jobsWithScores.sort((a, b) => b.match_score - a.match_score);
 
+    // Helper function to safely convert date to ISO string
+    const safeDateToISO = (dateValue: string | undefined | null): string | null => {
+      if (!dateValue) return null;
+      try {
+        const date = new Date(dateValue);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return null;
+        }
+        return date.toISOString();
+      } catch (error) {
+        console.warn("Invalid date value:", dateValue);
+        return null;
+      }
+    };
+
     // Save top jobs to database for tracking
     const jobsToSave = jobsWithScores.slice(0, limit).map((job) => ({
       user_id,
@@ -323,7 +339,7 @@ serve(async (req) => {
       match_score: job.match_score,
       matched_skills: job.matched_skills,
       missing_skills: job.missing_skills,
-      posted_date: job.posted_date ? new Date(job.posted_date).toISOString() : null,
+      posted_date: safeDateToISO(job.posted_date),
     }));
 
     // Upsert jobs (avoid duplicates)
