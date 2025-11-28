@@ -54,9 +54,31 @@ const KanbanColumn = ({ title, status, applications, onDragEnd }: any) => {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(app.applied_at).toLocaleDateString()}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(app.applied_at).toLocaleDateString()}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        app.status === "accepted"
+                          ? "border-emerald-500 text-emerald-500 bg-emerald-500/10"
+                          : app.status === "rejected"
+                          ? "border-red-500 text-red-500 bg-red-500/10"
+                          : app.status === "shortlisted"
+                          ? "border-green-500 text-green-500 bg-green-500/10"
+                          : ""
+                      }`}
+                    >
+                      {app.status === "accepted" 
+                        ? "✓ Accepted" 
+                        : app.status === "rejected"
+                        ? "✗ Rejected"
+                        : app.status === "shortlisted"
+                        ? "Shortlisted"
+                        : ""}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -163,11 +185,11 @@ export default function Applications() {
       color: "text-purple-500"
     },
     {
-      id: "offer",
-      title: "Offer",
-      status: "offer",
-      icon: TrendingUp,
-      color: "text-yellow-500"
+      id: "accepted",
+      title: "Accepted",
+      status: "accepted",
+      icon: CheckCircle2,
+      color: "text-emerald-500"
     },
     {
       id: "rejected",
@@ -184,6 +206,9 @@ export default function Applications() {
       if (status === "interview_scheduled") {
         return app.status === "interview_scheduled" || app.status === "interview";
       }
+      if (status === "applied") {
+        return app.status === "applied" || app.status === "pending";
+      }
       return app.status === status;
     });
   };
@@ -191,8 +216,9 @@ export default function Applications() {
   // Calculate stats
   const totalApplications = applications?.length || 0;
   const shortlistedCount = getApplicationsByStatus("shortlisted").length;
+  const acceptedCount = getApplicationsByStatus("accepted").length;
   const interviewCount = getApplicationsByStatus("interview_scheduled").length;
-  const offerCount = getApplicationsByStatus("offer").length;
+  const rejectedCount = getApplicationsByStatus("rejected").length;
   const avgMatchScore = applications?.length
     ? Math.round(
         applications.reduce((sum: number, app: any) => sum + (app.match_score || 0), 0) /
@@ -233,16 +259,16 @@ export default function Applications() {
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-500 mb-1">{interviewCount}</div>
-                <div className="text-sm text-gray-400">Interviews</div>
+                <div className="text-3xl font-bold text-emerald-500 mb-1">{acceptedCount}</div>
+                <div className="text-sm text-gray-400">Accepted</div>
               </div>
             </CardContent>
           </Card>
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-yellow-500 mb-1">{avgMatchScore}%</div>
-                <div className="text-sm text-gray-400">Avg Match Score</div>
+                <div className="text-3xl font-bold text-red-500 mb-1">{rejectedCount}</div>
+                <div className="text-sm text-gray-400">Rejected</div>
               </div>
             </CardContent>
           </Card>
@@ -298,14 +324,24 @@ export default function Applications() {
                       <Badge
                         variant="outline"
                         className={
-                          app.status === "shortlisted"
-                            ? "border-green-500 text-green-500"
+                          app.status === "accepted"
+                            ? "border-emerald-500 text-emerald-500 bg-emerald-500/10"
+                            : app.status === "shortlisted"
+                            ? "border-green-500 text-green-500 bg-green-500/10"
                             : app.status === "rejected"
-                            ? "border-red-500 text-red-500"
+                            ? "border-red-500 text-red-500 bg-red-500/10"
+                            : app.status === "pending"
+                            ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
                             : ""
                         }
                       >
-                        {app.status}
+                        {app.status === "accepted" 
+                          ? "✓ Accepted" 
+                          : app.status === "rejected"
+                          ? "✗ Rejected"
+                          : app.status === "pending"
+                          ? "Pending Review"
+                          : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                       </Badge>
                       <span className="text-xs text-gray-400">
                         {new Date(app.applied_at).toLocaleDateString()}

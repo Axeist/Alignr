@@ -138,19 +138,36 @@ export default function AlumniApplications() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ appId, status }: { appId: string; status: string }) => {
+    mutationFn: async ({ appId, status, studentId }: { appId: string; status: string; studentId?: string }) => {
       const { error } = await supabase
         .from("applications")
         .update({ status })
         .eq("id", appId);
       if (error) throw error;
+      return { studentId };
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      const statusMessages: Record<string, string> = {
+        shortlisted: "Application has been shortlisted. The student will be notified.",
+        rejected: "Application has been rejected. The student will be notified.",
+        accepted: "Application has been accepted. The student will be notified.",
+      };
+      
       toast({
         title: "Status updated",
-        description: "Application status has been updated.",
+        description: statusMessages[variables.status] || "Application status has been updated.",
       });
+      
+      // Invalidate alumni applications query
       queryClient.invalidateQueries({ queryKey: ["alumni-applications"] });
+      
+      // Invalidate student's applications query if we have studentId
+      if (variables.studentId) {
+        queryClient.invalidateQueries({ queryKey: ["applications", variables.studentId] });
+      }
+      
+      // Also invalidate all applications queries to ensure sync
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
     onError: (error: any) => {
       toast({
@@ -173,17 +190,18 @@ export default function AlumniApplications() {
     total: applications?.length || 0,
     pending: applications?.filter((a: any) => a.status === "pending").length || 0,
     shortlisted: applications?.filter((a: any) => a.status === "shortlisted").length || 0,
+    accepted: applications?.filter((a: any) => a.status === "accepted").length || 0,
     rejected: applications?.filter((a: any) => a.status === "rejected").length || 0,
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case "accepted":
+        return <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500">✓ Accepted</Badge>;
       case "shortlisted":
         return <Badge className="bg-green-500/20 text-green-500 border-green-500">Shortlisted</Badge>;
       case "rejected":
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500">Rejected</Badge>;
-      case "accepted":
-        return <Badge className="bg-blue-500/20 text-blue-500 border-blue-500">Accepted</Badge>;
+        return <Badge className="bg-red-500/20 text-red-500 border-red-500">✗ Rejected</Badge>;
       default:
         return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">Pending</Badge>;
     }
@@ -202,7 +220,7 @@ export default function AlumniApplications() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="text-center">
@@ -224,6 +242,14 @@ export default function AlumniApplications() {
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-500 mb-1">{stats.shortlisted}</div>
                 <div className="text-sm text-gray-400">Shortlisted</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-emerald-500 mb-1">{stats.accepted}</div>
+                <div className="text-sm text-gray-400">Accepted</div>
               </div>
             </CardContent>
           </Card>
@@ -258,8 +284,8 @@ export default function AlumniApplications() {
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
                   <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -350,7 +376,11 @@ export default function AlumniApplications() {
                             size="sm"
                             variant="outline"
                             className="border-green-500 text-green-500 hover:bg-green-500/10"
-                            onClick={() => updateStatusMutation.mutate({ appId: app.id, status: "shortlisted" })}
+                            onClick={() => updateStatusMutation.mutate({ 
+                              appId: app.id, 
+                              status: "shortlisted",
+                              studentId: app.student_id || app.user_id 
+                            })}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Shortlist
@@ -359,7 +389,11 @@ export default function AlumniApplications() {
                             size="sm"
                             variant="outline"
                             className="border-red-500 text-red-500 hover:bg-red-500/10"
-                            onClick={() => updateStatusMutation.mutate({ appId: app.id, status: "rejected" })}
+                            onClick={() => updateStatusMutation.mutate({ 
+                              appId: app.id, 
+                              status: "rejected",
+                              studentId: app.student_id || app.user_id 
+                            })}
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             Reject
@@ -371,7 +405,11 @@ export default function AlumniApplications() {
                           size="sm"
                           variant="outline"
                           className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
-                          onClick={() => updateStatusMutation.mutate({ appId: app.id, status: "accepted" })}
+                          onClick={() => updateStatusMutation.mutate({ 
+                            appId: app.id, 
+                            status: "accepted",
+                            studentId: app.student_id || app.user_id 
+                          })}
                         >
                           Accept
                         </Button>
