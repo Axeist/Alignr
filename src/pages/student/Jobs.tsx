@@ -795,7 +795,7 @@ export default function JobBoard() {
 
         {/* Application Modal */}
         <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>
-          <DialogContent className="glass max-w-2xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Apply for {selectedJob?.job?.title}</DialogTitle>
               <DialogDescription>
@@ -864,7 +864,7 @@ export default function JobBoard() {
 
         {/* External Job Application Tracking Modal */}
         <Dialog open={showExternalJobModal} onOpenChange={setShowExternalJobModal}>
-          <DialogContent className="glass max-w-2xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Track External Job Application</DialogTitle>
               <DialogDescription>
