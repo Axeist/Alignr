@@ -459,7 +459,7 @@ export default function CollegeEvents() {
                             Upcoming
                           </Badge>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-1">
                           {canEditEvent(event) && (
                             <Button
                               variant="ghost"
