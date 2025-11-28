@@ -175,15 +175,8 @@ export default function AlumniApplications() {
         description: statusMessages[variables.status] || "Application status has been updated.",
       });
       
-      // Update the query data to confirm the status change
-      // This ensures the UI reflects the change immediately and persists
-      // We don't invalidate the current query to avoid immediate refetch that might get stale data
-      queryClient.setQueryData(["alumni-applications", user?.id, jobIdFilter], (old: any) => {
-        if (!old) return old;
-        return old.map((app: any) =>
-          app.id === variables.appId ? { ...app, status: variables.status } : app
-        );
-      });
+      // Invalidate and refetch the alumni applications query to ensure fresh data from database
+      queryClient.invalidateQueries({ queryKey: ["alumni-applications", user?.id, jobIdFilter] });
       
       // Invalidate student's applications query if we have studentId (different query key, safe to invalidate)
       if (variables.studentId) {
