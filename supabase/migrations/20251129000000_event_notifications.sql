@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS public.event_notification_subscriptions (
 -- Enable RLS
 ALTER TABLE public.event_notification_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to allow re-running this migration)
+DROP POLICY IF EXISTS "Users can view own event notification subscriptions" ON public.event_notification_subscriptions;
+DROP POLICY IF EXISTS "Users can insert own event notification subscriptions" ON public.event_notification_subscriptions;
+DROP POLICY IF EXISTS "Users can delete own event notification subscriptions" ON public.event_notification_subscriptions;
+DROP POLICY IF EXISTS "System can update event notification subscriptions" ON public.event_notification_subscriptions;
+
 -- RLS Policies for event_notification_subscriptions
 CREATE POLICY "Users can view own event notification subscriptions" 
   ON public.event_notification_subscriptions 
