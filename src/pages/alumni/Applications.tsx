@@ -139,14 +139,12 @@ export default function AlumniApplications() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ appId, status, studentId }: { appId: string; status: string; studentId?: string }) => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("applications")
         .update({ status })
-        .eq("id", appId)
-        .select()
-        .single();
+        .eq("id", appId);
       if (error) throw error;
-      return { appId, status, studentId, updatedApp: data };
+      return { appId, status, studentId };
     },
     onMutate: async ({ appId, status }) => {
       // Cancel any outgoing refetches
