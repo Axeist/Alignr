@@ -44,6 +44,7 @@ export default function CollegeEvents() {
     description: "",
     event_date: "",
     location: "",
+    registration_link: "",
   });
 
   const navItems = [
@@ -127,7 +128,7 @@ export default function CollegeEvents() {
       });
       queryClient.invalidateQueries({ queryKey: ["college-events"] });
       setCreateDialogOpen(false);
-      setFormData({ title: "", description: "", event_date: "", location: "" });
+      setFormData({ title: "", description: "", event_date: "", location: "", registration_link: "" });
     },
     onError: (error: any) => {
       toast({
@@ -276,6 +277,16 @@ export default function CollegeEvents() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Event description..."
                       rows={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registration_link">Registration Link (Optional)</Label>
+                    <Input
+                      id="registration_link"
+                      type="url"
+                      value={formData.registration_link}
+                      onChange={(e) => setFormData({ ...formData, registration_link: e.target.value })}
+                      placeholder="https://example.com/register"
                     />
                   </div>
                   <Button
