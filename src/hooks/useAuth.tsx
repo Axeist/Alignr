@@ -171,6 +171,8 @@ export function useAuth() {
               role: role,
               college_id: collegeDbId,
               alumni_startup_number: role === "alumni" ? alumniStartupNumber : null,
+              // Set alumni verification status to pending for alumni role
+              alumni_verification_status: role === "alumni" ? "pending" : null,
             });
 
           if (profileError) throw profileError;
@@ -194,11 +196,19 @@ export function useAuth() {
         }
         // Note: The RPC function now handles college_id and admin_id update atomically
 
-        toast({
-          title: "Success",
-          description: "Account created successfully!",
-          variant: "success",
-        });
+        if (role === "alumni") {
+          toast({
+            title: "Account Created - Verification Pending",
+            description: "Your account has been created. Your college representative will verify your alumni/startup credentials before you can post jobs visible to students.",
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Account created successfully!",
+            variant: "success",
+          });
+        }
       }
 
       return { data, error: null };
