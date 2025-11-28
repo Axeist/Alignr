@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Search, User, Briefcase, Calendar, Download, Eye, CheckCircle2, XCircle, Clock, Mail } from "lucide-react";
+import { Search, User, Briefcase, Calendar, Download, Eye, CheckCircle2, XCircle, X, Clock, Mail } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
@@ -403,19 +403,43 @@ export default function AlumniApplications() {
                         </>
                       )}
                       {app.status === "shortlisted" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
-                          onClick={() => updateStatusMutation.mutate({ 
-                            appId: app.id, 
-                            status: "accepted",
-                            studentId: app.student_id || app.user_id 
-                          })}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Accept
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-500 text-green-500 bg-green-500/10"
+                            disabled
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Shortlisted
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-orange-500 text-orange-500 hover:bg-orange-500/10"
+                            onClick={() => updateStatusMutation.mutate({ 
+                              appId: app.id, 
+                              status: "applied",
+                              studentId: app.student_id || app.user_id 
+                            })}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Remove from Shortlist
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                            onClick={() => updateStatusMutation.mutate({ 
+                              appId: app.id, 
+                              status: "accepted",
+                              studentId: app.student_id || app.user_id 
+                            })}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Accept
+                          </Button>
+                        </>
                       )}
                       {(app.status === "accepted" || app.status === "rejected") && (
                         <p className="text-sm text-gray-400 italic">
