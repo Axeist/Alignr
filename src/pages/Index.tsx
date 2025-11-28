@@ -211,15 +211,15 @@ const Index = () => {
                 transition={{ duration: 0.8, delay: 0.7 }}
                 className="flex flex-col sm:flex-row gap-4 justify-center"
               >
-          {user ? (
-            <Link to={getDashboardLink()}>
+                {user ? (
+                  <Link to={getDashboardLink()}>
                     <Button size="lg" className="bg-gradient-to-r from-[#CAFF00] to-[#B8E600] hover:from-[#B8E600] hover:to-[#CAFF00] text-gray-900 px-8 py-6 text-lg font-semibold rounded-full hover:scale-105 transition-all shadow-xl hover:shadow-2xl">
                       Access Dashboard <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          ) : (
-            <>
-              <Link to="/auth">
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/auth">
                       <motion.div
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -246,11 +246,11 @@ const Index = () => {
                       >
                         <Button size="lg" variant="outline" className="border-2 border-[#CAFF00] text-[#0066FF] bg-white/80 backdrop-blur-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-yellow-50 px-8 py-6 text-lg font-semibold rounded-full transition-all shadow-lg hover:shadow-xl">
                           For Colleges
-                </Button>
+                        </Button>
                       </motion.div>
-              </Link>
-            </>
-          )}
+                    </Link>
+                  </>
+                )}
               </motion.div>
             </motion.div>
           </div>
@@ -445,8 +445,8 @@ const Index = () => {
                   </Card>
                 </motion.div>
               ))}
-        </div>
-      </div>
+            </div>
+          </div>
         </section>
 
         {/* CTA Section - Enhanced */}
