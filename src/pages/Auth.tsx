@@ -397,10 +397,6 @@ export default function Auth() {
                   <Label htmlFor="role" className="text-gray-900">I am a...</Label>
                   <Select value={role} onValueChange={(value) => {
                     setRole(value as UserRole);
-                    // Reset college selection when role changes
-                    if (value === "admin") {
-                      setSelectedCollege("");
-                    }
                     // Reset alumni/startup number when role changes
                     if (value !== "alumni") {
                       setAlumniStartupNumber("");
@@ -413,7 +409,6 @@ export default function Auth() {
                       <SelectItem value="student">Student</SelectItem>
                       <SelectItem value="alumni">Alumni/Startup</SelectItem>
                       <SelectItem value="college">College/TPO</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
