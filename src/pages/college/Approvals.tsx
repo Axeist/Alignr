@@ -81,9 +81,9 @@ export default function CollegeApprovals() {
 
   const collegeId = profile?.college_id;
 
-  // Fetch pending alumni/startups for verification
-  const { data: pendingAlumni, isLoading: alumniLoading } = useQuery({
-    queryKey: ["pending-alumni", collegeId],
+  // Fetch all alumni/startups for the college (both pending and verified)
+  const { data: allAlumni, isLoading: alumniLoading } = useQuery({
+    queryKey: ["all-alumni", collegeId],
     queryFn: async () => {
       if (!collegeId) return [];
       const { data, error } = await supabase
@@ -91,7 +91,6 @@ export default function CollegeApprovals() {
         .select("*")
         .eq("college_id", collegeId)
         .eq("role", "alumni")
-        .or("alumni_verification_status.is.null,alumni_verification_status.eq.pending")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -99,23 +98,14 @@ export default function CollegeApprovals() {
     enabled: !!collegeId,
   });
 
-  // Fetch verified alumni
-  const { data: verifiedAlumni } = useQuery({
-    queryKey: ["verified-alumni", collegeId],
-    queryFn: async () => {
-      if (!collegeId) return [];
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("college_id", collegeId)
-        .eq("role", "alumni")
-        .eq("alumni_verification_status", "approved")
-        .order("alumni_verified_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!collegeId,
-  });
+  // Separate pending and verified alumni
+  const pendingAlumni = allAlumni?.filter(
+    (alumni: any) => !alumni.alumni_verification_status || alumni.alumni_verification_status === "pending"
+  ) || [];
+  
+  const verifiedAlumni = allAlumni?.filter(
+    (alumni: any) => alumni.alumni_verification_status === "approved"
+  ) || [];
 
   // Fetch pending jobs
   const { data: pendingJobs, isLoading: jobsLoading } = useQuery({
@@ -159,6 +149,7 @@ export default function CollegeApprovals() {
           alumni_verification_status: "approved",
           alumni_verified_at: new Date().toISOString(),
           alumni_verified_by: user?.id,
+          is_active: true, // Ensure profile is active when approved
         })
         .eq("user_id", alumniUserId);
       if (error) throw error;
@@ -168,8 +159,7 @@ export default function CollegeApprovals() {
         title: "Alumni Verified",
         description: "The alumni/startup has been verified successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["pending-alumni"] });
-      queryClient.invalidateQueries({ queryKey: ["verified-alumni"] });
+      queryClient.invalidateQueries({ queryKey: ["all-alumni"] });
       setViewAlumniDialogOpen(false);
     },
     onError: (error: any) => {
@@ -200,7 +190,7 @@ export default function CollegeApprovals() {
         title: "Alumni Rejected",
         description: "The alumni/startup verification has been rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ["pending-alumni"] });
+      queryClient.invalidateQueries({ queryKey: ["all-alumni"] });
       setRejectDialogOpen(false);
       setViewAlumniDialogOpen(false);
       setRejectionReason("");
@@ -209,6 +199,33 @@ export default function CollegeApprovals() {
       toast({
         title: "Error",
         description: error.message || "Failed to reject alumni",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Deactivate alumni mutation
+  const deactivateAlumniMutation = useMutation({
+    mutationFn: async (alumniUserId: string) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          is_active: false,
+        })
+        .eq("user_id", alumniUserId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Alumni Deactivated",
+        description: "The alumni/startup profile has been deactivated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["all-alumni"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to deactivate alumni",
         variant: "destructive",
       });
     },
@@ -278,11 +295,14 @@ export default function CollegeApprovals() {
     approvedJobs: approvedJobsCount || 0,
   };
 
-  const filteredAlumni = pendingAlumni?.filter((alumni: any) =>
+  // Combine pending and verified alumni for display
+  const allAlumniForDisplay = [...pendingAlumni, ...verifiedAlumni];
+  
+  const filteredAlumni = allAlumniForDisplay.filter((alumni: any) =>
     alumni.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     alumni.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     alumni.alumni_startup_number?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  );
 
   const filteredJobs = pendingJobs?.filter((job: any) =>
     job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -399,8 +419,10 @@ export default function CollegeApprovals() {
               <Card className="glass-hover">
                 <CardContent className="pt-12 pb-12 text-center">
                   <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No pending verifications</h3>
-                  <p className="text-gray-400">All alumni and startups have been reviewed.</p>
+                  <h3 className="text-lg font-semibold mb-2">No alumni found</h3>
+                  <p className="text-gray-400">
+                    {searchQuery ? "No alumni match your search criteria." : "No alumni or startups have registered yet."}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -430,9 +452,21 @@ export default function CollegeApprovals() {
                                   {alumni.email}
                                 </div>
                               </div>
-                              <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">
-                                Pending Verification
-                              </Badge>
+                              {alumni.alumni_verification_status === "approved" ? (
+                                <Badge className="bg-green-500/20 text-green-500 border-green-500">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              ) : alumni.alumni_verification_status === "rejected" ? (
+                                <Badge className="bg-red-500/20 text-red-500 border-red-500">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Rejected
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">
+                                  Pending Verification
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-4 text-sm mb-4">
                               <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full">
@@ -441,8 +475,16 @@ export default function CollegeApprovals() {
                               </div>
                               <div className="flex items-center gap-1 text-gray-400">
                                 <Clock className="h-3 w-3" />
-                                Registered {new Date(alumni.created_at).toLocaleDateString()}
+                                {alumni.alumni_verified_at 
+                                  ? `Verified ${new Date(alumni.alumni_verified_at).toLocaleDateString()}`
+                                  : `Registered ${new Date(alumni.created_at).toLocaleDateString()}`
+                                }
                               </div>
+                              {alumni.is_active === false && (
+                                <Badge variant="outline" className="border-gray-500 text-gray-500">
+                                  Inactive
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <Button
@@ -456,29 +498,55 @@ export default function CollegeApprovals() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-green-500 text-green-500 hover:bg-green-500/10"
-                                onClick={() => approveAlumniMutation.mutate(alumni.user_id)}
-                                disabled={approveAlumniMutation.isPending}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                Verify
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-red-500 text-red-500 hover:bg-red-500/10"
-                                onClick={() => {
-                                  setSelectedAlumni(alumni);
-                                  setRejectDialogOpen(true);
-                                }}
-                                disabled={rejectAlumniMutation.isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject
-                              </Button>
+                              {alumni.alumni_verification_status === "approved" ? (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-green-500 text-green-500 bg-green-500/10"
+                                    disabled
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Verified
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-orange-500 text-orange-500 hover:bg-orange-500/10"
+                                    onClick={() => deactivateAlumniMutation.mutate(alumni.user_id)}
+                                    disabled={deactivateAlumniMutation.isPending || alumni.is_active === false}
+                                  >
+                                    <UserX className="h-4 w-4 mr-2" />
+                                    {alumni.is_active === false ? "Deactivated" : "Deactivate"}
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-green-500 text-green-500 hover:bg-green-500/10"
+                                    onClick={() => approveAlumniMutation.mutate(alumni.user_id)}
+                                    disabled={approveAlumniMutation.isPending}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Verify
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-red-500 text-red-500 hover:bg-red-500/10"
+                                    onClick={() => {
+                                      setSelectedAlumni(alumni);
+                                      setRejectDialogOpen(true);
+                                    }}
+                                    disabled={rejectAlumniMutation.isPending}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>

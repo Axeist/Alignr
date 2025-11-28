@@ -280,6 +280,7 @@ $$;
 DROP POLICY IF EXISTS "Everyone can view approved jobs" ON jobs;
 DROP POLICY IF EXISTS "Students can view college jobs" ON jobs;
 DROP POLICY IF EXISTS "Users can view jobs based on role" ON jobs;
+DROP POLICY IF EXISTS "Users can view jobs based on role and college" ON jobs;
 
 -- Create new comprehensive job visibility policy
 CREATE POLICY "Users can view jobs based on role and college" ON jobs
