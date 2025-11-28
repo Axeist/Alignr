@@ -356,6 +356,7 @@ export default function CollegeApprovals() {
       });
       queryClient.invalidateQueries({ queryKey: ["pending-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["approved-jobs-count"] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] }); // Invalidate alumni jobs so they see the status update
       setViewJobDialogOpen(false);
     },
     onError: (error: any) => {
@@ -382,6 +383,7 @@ export default function CollegeApprovals() {
         description: "The job has been rejected.",
       });
       queryClient.invalidateQueries({ queryKey: ["pending-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] }); // Invalidate alumni jobs so they see the status update
       setViewJobDialogOpen(false);
     },
     onError: (error: any) => {

@@ -314,6 +314,7 @@ export default function AdminApprovals() {
         description: "The job status has been updated.",
       });
       queryClient.invalidateQueries({ queryKey: ["admin-pending-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] }); // Invalidate alumni jobs so they see the status update
       setViewDialogOpen(false);
     },
     onError: (error: any) => {

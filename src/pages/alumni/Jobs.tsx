@@ -127,8 +127,9 @@ export default function AlumniJobs() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
       case "approved":
+        return <Badge className="bg-green-500/20 text-green-500 border-green-500">Verified</Badge>;
+      case "active":
         return <Badge className="bg-green-500/20 text-green-500 border-green-500">Active</Badge>;
       case "pending":
         return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">Pending</Badge>;
