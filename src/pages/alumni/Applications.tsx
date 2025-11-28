@@ -139,12 +139,14 @@ export default function AlumniApplications() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ appId, status, studentId }: { appId: string; status: string; studentId?: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("applications")
         .update({ status })
-        .eq("id", appId);
+        .eq("id", appId)
+        .select()
+        .single();
       if (error) throw error;
-      return { appId, status, studentId };
+      return { appId, status, studentId, updatedApp: data };
     },
     onMutate: async ({ appId, status }) => {
       // Cancel any outgoing refetches
@@ -175,10 +177,26 @@ export default function AlumniApplications() {
         description: statusMessages[variables.status] || "Application status has been updated.",
       });
       
-      // Invalidate and refetch the alumni applications query to ensure fresh data from database
-      queryClient.invalidateQueries({ queryKey: ["alumni-applications", user?.id, jobIdFilter] });
+      // Confirm the status update in the cache (optimistic update already changed it, but ensure it persists)
+      queryClient.setQueryData(["alumni-applications", user?.id, jobIdFilter], (old: any) => {
+        if (!old) return old;
+        const updated = old.map((app: any) => {
+          if (app.id === variables.appId) {
+            // Update status and preserve all other data (profiles, jobs, etc.)
+            return { ...app, status: variables.status };
+          }
+          return app;
+        });
+        return updated;
+      });
       
-      // Invalidate student's applications query if we have studentId (different query key, safe to invalidate)
+      // Invalidate to refetch in background and ensure database consistency
+      // This will refetch but won't block the UI update
+      queryClient.invalidateQueries({ 
+        queryKey: ["alumni-applications", user?.id, jobIdFilter] 
+      });
+      
+      // Invalidate student's applications query if we have studentId
       if (variables.studentId) {
         queryClient.invalidateQueries({ queryKey: ["applications", variables.studentId] });
       }
@@ -331,7 +349,7 @@ export default function AlumniApplications() {
           <div className="space-y-4">
             {filteredApplications.map((app: any, idx: number) => (
               <motion.div
-                key={app.id}
+                key={`${app.id}-${app.status}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
