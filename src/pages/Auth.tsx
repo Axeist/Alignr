@@ -109,6 +109,7 @@ export default function Auth() {
   const [selectedCollege, setSelectedCollege] = useState<string>("");
   const [collegeCategoryFilter, setCollegeCategoryFilter] = useState<CollegeCategory | "all">("all");
   const [collegeSearchOpen, setCollegeSearchOpen] = useState(false);
+  const [alumniStartupNumber, setAlumniStartupNumber] = useState("");
 
   // Password validation
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
@@ -193,8 +194,18 @@ export default function Auth() {
       return;
     }
 
+    // Validate alumni/startup number for alumni role
+    if (role === "alumni" && !alumniStartupNumber.trim()) {
+      toast({
+        title: "Enrollment/Certificate Number Required",
+        description: "Please enter your Alumni Enrollment Number or Startup Certificate Number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role, selectedCollege);
+    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role, selectedCollege, role === "alumni" ? alumniStartupNumber : undefined);
     setLoading(false);
     if (!error && data?.user) {
       // Wait for role to be fetched
@@ -390,6 +401,10 @@ export default function Auth() {
                     if (value === "admin") {
                       setSelectedCollege("");
                     }
+                    // Reset alumni/startup number when role changes
+                    if (value !== "alumni") {
+                      setAlumniStartupNumber("");
+                    }
                   }}>
                     <SelectTrigger id="role" className="border-gray-300 focus:border-[#0066FF]">
                       <SelectValue />
@@ -402,6 +417,27 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Alumni Enrollment / Startup Certificate Number - Only for Alumni/Startup */}
+                {role === "alumni" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni-startup-number" className="text-gray-900">
+                      Alumni Enrollment Number / Startup Certificate Number
+                    </Label>
+                    <Input
+                      id="alumni-startup-number"
+                      type="text"
+                      placeholder="Enter your enrollment or certificate number"
+                      value={alumniStartupNumber}
+                      onChange={(e) => setAlumniStartupNumber(e.target.value)}
+                      required
+                      className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Enter your Alumni Enrollment Number or Startup Certificate Number
+                    </p>
+                  </div>
+                )}
 
                 {/* College Selection - Required for non-admin roles */}
                 {role !== "admin" && (
@@ -539,7 +575,7 @@ export default function Auth() {
                 <Button 
                   type="submit" 
                   className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms || (role !== "admin" && !selectedCollege)}
+                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms || (role !== "admin" && !selectedCollege) || (role === "alumni" && !alumniStartupNumber.trim())}
                 >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>

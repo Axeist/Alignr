@@ -27,6 +27,7 @@ interface ProfileData {
   portfolio_url: string | null;
   college_id: string | null;
   college_changed_count: number | null;
+  alumni_startup_number: string | null;
   college: {
     id: string;
     name: string;
@@ -95,6 +96,7 @@ export default function AlumniProfile() {
         portfolio_url: profileData.portfolio_url || null,
         college_id: profileData.college_id || null,
         college_changed_count: (profileData as any).college_changed_count || null,
+        alumni_startup_number: (profileData as any).alumni_startup_number || null,
         college: collegeData,
       };
     },
@@ -260,6 +262,7 @@ export default function AlumniProfile() {
     github_url: "",
     portfolio_url: "",
     college_id: "",
+    alumni_startup_number: "",
   });
   
   const [collegeSearchQuery, setCollegeSearchQuery] = useState("");
@@ -276,6 +279,7 @@ export default function AlumniProfile() {
         github_url: profile.github_url || "",
         portfolio_url: profile.portfolio_url || "",
         college_id: profile.college_id || "",
+        alumni_startup_number: profile.alumni_startup_number || "",
       });
       setSelectedCollegeId(profile.college_id || "");
     }
@@ -351,6 +355,20 @@ export default function AlumniProfile() {
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="+91 9876543210"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="alumni_startup_number">Alumni Enrollment / Startup Certificate Number</Label>
+                    <Input
+                      id="alumni_startup_number"
+                      type="text"
+                      value={formData.alumni_startup_number}
+                      onChange={(e) => setFormData({ ...formData, alumni_startup_number: e.target.value })}
+                      placeholder="Enter your enrollment or certificate number"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Your Alumni Enrollment Number or Startup Certificate Number
+                    </p>
                   </div>
 
                   <div className="space-y-2">

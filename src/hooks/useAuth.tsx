@@ -62,7 +62,7 @@ export function useAuth() {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role: UserRole, collegeId?: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: UserRole, collegeId?: string, alumniStartupNumber?: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -156,6 +156,7 @@ export function useAuth() {
           p_email: email,
           p_role: role,
           p_college_id: collegeDbId, // Pass college_id directly to the RPC
+          p_alumni_startup_number: role === "alumni" ? alumniStartupNumber : null, // Pass alumni/startup number
         });
 
         if (functionError) {
@@ -169,6 +170,7 @@ export function useAuth() {
               email: email,
               role: role,
               college_id: collegeDbId,
+              alumni_startup_number: role === "alumni" ? alumniStartupNumber : null,
             });
 
           if (profileError) throw profileError;
