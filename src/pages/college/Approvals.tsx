@@ -107,19 +107,24 @@ export default function CollegeApprovals() {
     (alumni: any) => alumni.alumni_verification_status === "approved"
   ) || [];
 
-  // Fetch pending jobs
+  // Fetch pending jobs using the database function that ensures college match
   const { data: pendingJobs, isLoading: jobsLoading } = useQuery({
     queryKey: ["pending-jobs", collegeId],
     queryFn: async () => {
       if (!collegeId) return [];
       const { data, error } = await supabase
-        .from("jobs")
-        .select("*, profiles!jobs_posted_by_fkey(full_name, email, alumni_verification_status, alumni_startup_number)")
-        .eq("college_id", collegeId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .rpc("get_pending_jobs_for_college", { p_college_id: collegeId });
       if (error) throw error;
-      return data || [];
+      // Transform the data to match the expected format
+      return (data || []).map((job: any) => ({
+        ...job,
+        profiles: {
+          full_name: job.poster_full_name,
+          email: job.poster_email,
+          alumni_verification_status: job.poster_alumni_status,
+          alumni_startup_number: job.poster_alumni_number,
+        },
+      }));
     },
     enabled: !!collegeId,
   });
@@ -336,18 +341,17 @@ export default function CollegeApprovals() {
     },
   });
 
-  // Approve job mutation
+  // Approve job mutation using the database function
   const approveJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
-      const { error } = await supabase
-        .from("jobs")
-        .update({ 
-          status: "approved",
-          approved_at: new Date().toISOString(),
-          approved_by: user?.id,
-        })
-        .eq("id", jobId);
+      if (!user?.id) throw new Error("User not authenticated");
+      const { data, error } = await supabase
+        .rpc("approve_job", {
+          p_job_id: jobId,
+          p_approver_id: user.id,
+        });
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast({
@@ -368,14 +372,18 @@ export default function CollegeApprovals() {
     },
   });
 
-  // Reject job mutation
+  // Reject job mutation using the database function
   const rejectJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
-      const { error } = await supabase
-        .from("jobs")
-        .update({ status: "rejected" })
-        .eq("id", jobId);
+      if (!user?.id) throw new Error("User not authenticated");
+      const { data, error } = await supabase
+        .rpc("reject_job", {
+          p_job_id: jobId,
+          p_approver_id: user.id,
+          p_reason: null, // Can be extended to accept a reason
+        });
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast({
