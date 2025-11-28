@@ -449,20 +449,26 @@ export default function CollegeEvents() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditEvent(event)}
+                              title="Edit event"
+                              className="hover:bg-blue-500/10"
                             >
                               <Edit className="h-4 w-4 text-blue-500" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEventToDelete(event.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          {isAlumniEvent(event) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEventToDelete(event.id);
+                                setDeleteDialogOpen(true);
+                              }}
+                              title="Delete event"
+                              className="hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
