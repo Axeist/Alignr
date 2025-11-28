@@ -154,18 +154,45 @@ export default function CollegeApprovals() {
         .eq("user_id", alumniUserId);
       if (error) throw error;
     },
+    onMutate: async (alumniUserId: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["all-alumni", collegeId] });
+      
+      // Snapshot the previous value
+      const previousAlumni = queryClient.getQueryData(["all-alumni", collegeId]);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(["all-alumni", collegeId], (old: any) => {
+        if (!old) return old;
+        return old.map((alumni: any) =>
+          alumni.user_id === alumniUserId
+            ? {
+                ...alumni,
+                alumni_verification_status: "approved",
+                alumni_verified_at: new Date().toISOString(),
+                alumni_verified_by: user?.id,
+                is_active: true,
+              }
+            : alumni
+        );
+      });
+      
+      return { previousAlumni };
+    },
     onSuccess: async () => {
       toast({
         title: "Alumni Verified",
         description: "The alumni/startup has been verified successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["all-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["pending-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["verified-alumni", collegeId] });
-      await refetchAlumni();
+      // Refetch to ensure we have the latest data
+      await queryClient.refetchQueries({ queryKey: ["all-alumni", collegeId] });
       setViewAlumniDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: any, alumniUserId: string, context: any) => {
+      // Rollback on error
+      if (context?.previousAlumni) {
+        queryClient.setQueryData(["all-alumni", collegeId], context.previousAlumni);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to verify alumni",
@@ -188,20 +215,40 @@ export default function CollegeApprovals() {
         .eq("user_id", alumniUserId);
       if (error) throw error;
     },
+    onMutate: async ({ alumniUserId }: { alumniUserId: string; reason: string }) => {
+      await queryClient.cancelQueries({ queryKey: ["all-alumni", collegeId] });
+      const previousAlumni = queryClient.getQueryData(["all-alumni", collegeId]);
+      
+      queryClient.setQueryData(["all-alumni", collegeId], (old: any) => {
+        if (!old) return old;
+        return old.map((alumni: any) =>
+          alumni.user_id === alumniUserId
+            ? {
+                ...alumni,
+                alumni_verification_status: "rejected",
+                alumni_verified_at: new Date().toISOString(),
+                alumni_verified_by: user?.id,
+              }
+            : alumni
+        );
+      });
+      
+      return { previousAlumni };
+    },
     onSuccess: async () => {
       toast({
         title: "Alumni Rejected",
         description: "The alumni/startup verification has been rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ["all-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["pending-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["verified-alumni", collegeId] });
-      await refetchAlumni();
+      await queryClient.refetchQueries({ queryKey: ["all-alumni", collegeId] });
       setRejectDialogOpen(false);
       setViewAlumniDialogOpen(false);
       setRejectionReason("");
     },
-    onError: (error: any) => {
+    onError: (error: any, variables: any, context: any) => {
+      if (context?.previousAlumni) {
+        queryClient.setQueryData(["all-alumni", collegeId], context.previousAlumni);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to reject alumni",
@@ -221,17 +268,32 @@ export default function CollegeApprovals() {
         .eq("user_id", alumniUserId);
       if (error) throw error;
     },
+    onMutate: async (alumniUserId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["all-alumni", collegeId] });
+      const previousAlumni = queryClient.getQueryData(["all-alumni", collegeId]);
+      
+      queryClient.setQueryData(["all-alumni", collegeId], (old: any) => {
+        if (!old) return old;
+        return old.map((alumni: any) =>
+          alumni.user_id === alumniUserId
+            ? { ...alumni, is_active: false }
+            : alumni
+        );
+      });
+      
+      return { previousAlumni };
+    },
     onSuccess: async () => {
       toast({
         title: "Alumni Deactivated",
         description: "The alumni/startup profile has been deactivated.",
       });
-      queryClient.invalidateQueries({ queryKey: ["all-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["pending-alumni", collegeId] });
-      queryClient.invalidateQueries({ queryKey: ["verified-alumni", collegeId] });
-      await refetchAlumni();
+      await queryClient.refetchQueries({ queryKey: ["all-alumni", collegeId] });
     },
-    onError: (error: any) => {
+    onError: (error: any, alumniUserId: string, context: any) => {
+      if (context?.previousAlumni) {
+        queryClient.setQueryData(["all-alumni", collegeId], context.previousAlumni);
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to deactivate alumni",
