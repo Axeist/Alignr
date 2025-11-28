@@ -76,6 +76,7 @@ export default function CollegeEvents() {
   });
 
   const collegeId = profile?.college_id;
+  const currentUserRole = profile?.role;
 
   // Fetch events with organizer profile information
   const { data: events, isLoading } = useQuery({
@@ -304,8 +305,23 @@ export default function CollegeEvents() {
     setEditDialogOpen(true);
   };
 
-  const isAlumniEvent = (event: any) => {
-    return event.organizer?.role === 'alumni' && event.organizer_id === user?.id;
+  const canEditEvent = (event: any) => {
+    if (!user) return false;
+    
+    // Check if current user is the organizer of this event
+    const isOrganizer = event.organizer_id === user.id;
+    
+    if (!isOrganizer) return false;
+    
+    // Check if organizer is an alumni (from fetched organizer profile)
+    const organizerIsAlumni = event.organizer?.role === 'alumni';
+    
+    // Also check if current user is an alumni (as a fallback)
+    const currentUserIsAlumni = currentUserRole === 'alumni';
+    
+    // Show edit button if: user is the organizer AND (organizer is alumni OR current user is alumni)
+    // This ensures alumni can edit events they created
+    return organizerIsAlumni || currentUserIsAlumni;
   };
 
   return (
@@ -444,7 +460,7 @@ export default function CollegeEvents() {
                           </Badge>
                         </div>
                         <div className="flex gap-1">
-                          {isAlumniEvent(event) && (
+                          {canEditEvent(event) && (
                             <Button
                               variant="ghost"
                               size="sm"
