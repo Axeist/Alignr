@@ -63,30 +63,36 @@ serve(async (req) => {
     const linkedin = linkedinResult.data;
 
     // Build job query with filters
-    // Show jobs that are:
-    // 1. Approved/active jobs that are either open to all (no college_id) or match student's college
-    // 2. Pending jobs from the same college (so students can see jobs posted by alumni from their college immediately)
+    // IMPORTANT: Only show APPROVED jobs to students
+    // Jobs are visible based on:
+    // 1. Job status must be 'approved' for students to see
+    // 2. If job has requires_college_match=true and college_id set, only students from that college can see
+    // 3. If job has requires_college_match=false OR college_id is null, all students can see
     
     let jobQuery;
     
     if (profile?.college_id) {
       // Student has a college - show:
-      // - Approved/active jobs (no college_id OR matching college_id)
-      // - Pending jobs from the same college (alumni from same college)
+      // - Approved jobs with no college_id (open to all)
+      // - Approved jobs with requires_college_match=false (open to all)
+      // - Approved jobs with matching college_id
       jobQuery = supabaseClient
         .from("jobs")
         .select("*")
+        .eq("status", "approved")
         .or(
-          `and(status.in.(approved,active),or(college_id.is.null,college_id.eq.${profile.college_id})),` +
-          `and(status.eq.pending,college_id.eq.${profile.college_id})`
+          `college_id.is.null,` +
+          `requires_college_match.eq.false,` +
+          `college_id.eq.${profile.college_id}`
         );
     } else {
-      // Student has no college - only show approved/active jobs with no college_id (open to all)
+      // Student has no college - only show approved jobs that are open to all
+      // (no college_id OR requires_college_match=false)
       jobQuery = supabaseClient
         .from("jobs")
         .select("*")
-        .in("status", ["approved", "active"])
-        .is("college_id", null);
+        .eq("status", "approved")
+        .or("college_id.is.null,requires_college_match.eq.false");
     }
 
     if (filters?.role) {
@@ -186,7 +192,8 @@ Job skills: ${(job.skills_required || []).slice(0, 10).join(", ")}`;
     return new Response(
       JSON.stringify({
         success: true,
-        jobs: jobsWithScores.slice(0, 20) // Return top 20
+        jobs: jobsWithScores.slice(0, 20), // Return top 20
+        user_college_id: profile?.college_id || null // Send back college info for UI
       }),
       { 
         headers: { 
@@ -208,4 +215,3 @@ Job skills: ${(job.skills_required || []).slice(0, 10).join(", ")}`;
     );
   }
 });
-
