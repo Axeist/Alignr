@@ -140,27 +140,56 @@ export default function CollegeEvents() {
 
   const deleteEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("college_events")
         .delete()
-        .eq("id", eventId);
+        .eq("id", eventId)
+        .select();
+      
       if (error) throw error;
+      
+      // Check if any rows were deleted
+      if (!data || data.length === 0) {
+        throw new Error("Failed to delete event. The event may not exist or you may not have permission.");
+      }
+      
+      return data;
+    },
+    onMutate: async (eventId: string) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["college-events", collegeId] });
+
+      // Snapshot the previous value
+      const previousEvents = queryClient.getQueryData(["college-events", collegeId]);
+
+      // Optimistically update to remove the event immediately
+      queryClient.setQueryData(["college-events", collegeId], (old: any) => {
+        if (!old) return old;
+        return old.filter((event: any) => event.id !== eventId);
+      });
+
+      return { previousEvents };
+    },
+    onError: (error: any, eventId: string, context: any) => {
+      // Rollback to the previous value on error
+      if (context?.previousEvents) {
+        queryClient.setQueryData(["college-events", collegeId], context.previousEvents);
+      }
+      toast({
+        title: "Error deleting event",
+        description: error.message,
+        variant: "destructive",
+      });
     },
     onSuccess: () => {
       toast({
         title: "Event deleted",
         description: "The event has been removed.",
       });
-      queryClient.invalidateQueries({ queryKey: ["college-events"] });
+      // Invalidate and refetch to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["college-events", collegeId] });
       setDeleteDialogOpen(false);
       setEventToDelete(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error deleting event",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 
