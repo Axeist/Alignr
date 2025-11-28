@@ -188,7 +188,7 @@ export default function AlumniApplications() {
 
   const stats = {
     total: applications?.length || 0,
-    pending: applications?.filter((a: any) => a.status === "pending").length || 0,
+    pending: applications?.filter((a: any) => a.status === "pending" || a.status === "applied").length || 0,
     shortlisted: applications?.filter((a: any) => a.status === "shortlisted").length || 0,
     accepted: applications?.filter((a: any) => a.status === "accepted").length || 0,
     rejected: applications?.filter((a: any) => a.status === "rejected").length || 0,
@@ -202,6 +202,8 @@ export default function AlumniApplications() {
         return <Badge className="bg-green-500/20 text-green-500 border-green-500">Shortlisted</Badge>;
       case "rejected":
         return <Badge className="bg-red-500/20 text-red-500 border-red-500">✗ Rejected</Badge>;
+      case "applied":
+      case "pending":
       default:
         return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">Pending</Badge>;
     }
@@ -370,7 +372,7 @@ export default function AlumniApplications() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2">
-                      {app.status === "pending" && (
+                      {(app.status === "pending" || app.status === "applied") && (
                         <>
                           <Button
                             size="sm"
@@ -404,15 +406,23 @@ export default function AlumniApplications() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
+                          className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
                           onClick={() => updateStatusMutation.mutate({ 
                             appId: app.id, 
                             status: "accepted",
                             studentId: app.student_id || app.user_id 
                           })}
                         >
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
                           Accept
                         </Button>
+                      )}
+                      {(app.status === "accepted" || app.status === "rejected") && (
+                        <p className="text-sm text-gray-400 italic">
+                          {app.status === "accepted" 
+                            ? "Application has been accepted" 
+                            : "Application has been rejected"}
+                        </p>
                       )}
                     </div>
                   </CardContent>
