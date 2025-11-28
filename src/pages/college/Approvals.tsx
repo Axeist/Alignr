@@ -143,16 +143,38 @@ export default function CollegeApprovals() {
   // Approve alumni mutation
   const approveAlumniMutation = useMutation({
     mutationFn: async (alumniUserId: string) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          alumni_verification_status: "approved",
-          alumni_verified_at: new Date().toISOString(),
-          alumni_verified_by: user?.id,
-          is_active: true, // Ensure profile is active when approved
-        })
-        .eq("user_id", alumniUserId);
-      if (error) throw error;
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      try {
+        // Use RPC function for proper permission handling
+        const { data, error } = await supabase.rpc("approve_alumni", {
+          p_user_id: alumniUserId,
+          p_approver_id: user.id,
+        });
+        
+        if (error) {
+          console.error("Approve alumni RPC error:", error);
+          throw error;
+        }
+        
+        if (data !== true) {
+          console.warn("Approve alumni returned unexpected value:", data);
+        }
+        
+        // Also ensure profile is active
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ is_active: true })
+          .eq("user_id", alumniUserId);
+        
+        if (updateError) {
+          console.error("Failed to activate profile:", updateError);
+          throw updateError;
+        }
+      } catch (err: any) {
+        console.error("Approve alumni mutation error:", err);
+        throw err;
+      }
     },
     onMutate: async (alumniUserId: string) => {
       // Cancel any outgoing refetches
@@ -204,16 +226,28 @@ export default function CollegeApprovals() {
   // Reject alumni mutation
   const rejectAlumniMutation = useMutation({
     mutationFn: async ({ alumniUserId, reason }: { alumniUserId: string; reason: string }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          alumni_verification_status: "rejected",
-          alumni_verified_at: new Date().toISOString(),
-          alumni_verified_by: user?.id,
-          alumni_rejection_reason: reason,
-        })
-        .eq("user_id", alumniUserId);
-      if (error) throw error;
+      if (!user?.id) throw new Error("User not authenticated");
+      
+      try {
+        // Use RPC function for proper permission handling
+        const { data, error } = await supabase.rpc("reject_alumni", {
+          p_user_id: alumniUserId,
+          p_approver_id: user.id,
+          p_reason: reason || null,
+        });
+        
+        if (error) {
+          console.error("Reject alumni RPC error:", error);
+          throw error;
+        }
+        
+        if (data !== true) {
+          console.warn("Reject alumni returned unexpected value:", data);
+        }
+      } catch (err: any) {
+        console.error("Reject alumni mutation error:", err);
+        throw err;
+      }
     },
     onMutate: async ({ alumniUserId }: { alumniUserId: string; reason: string }) => {
       await queryClient.cancelQueries({ queryKey: ["all-alumni", collegeId] });
@@ -594,24 +628,32 @@ export default function CollegeApprovals() {
                               ) : (
                                 <>
                                   <Button
+                                    type="button"
                                     variant="outline"
                                     size="sm"
                                     className="border-green-500 text-green-500 hover:bg-green-500/10"
-                                    onClick={() => approveAlumniMutation.mutate(alumni.user_id)}
-                                    disabled={approveAlumniMutation.isPending}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      approveAlumniMutation.mutate(alumni.user_id);
+                                    }}
+                                    disabled={approveAlumniMutation.isPending || rejectAlumniMutation.isPending}
                                   >
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     Verify
                                   </Button>
                                   <Button
+                                    type="button"
                                     variant="outline"
                                     size="sm"
                                     className="border-red-500 text-red-500 hover:bg-red-500/10"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       setSelectedAlumni(alumni);
                                       setRejectDialogOpen(true);
                                     }}
-                                    disabled={rejectAlumniMutation.isPending}
+                                    disabled={approveAlumniMutation.isPending || rejectAlumniMutation.isPending}
                                   >
                                     <XCircle className="h-4 w-4 mr-2" />
                                     Reject
@@ -840,9 +882,14 @@ export default function CollegeApprovals() {
                     Reject
                   </Button>
                   <Button
+                    type="button"
                     className="bg-green-600 hover:bg-green-700"
-                    onClick={() => approveAlumniMutation.mutate(selectedAlumni.user_id)}
-                    disabled={approveAlumniMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      approveAlumniMutation.mutate(selectedAlumni.user_id);
+                    }}
+                    disabled={approveAlumniMutation.isPending || rejectAlumniMutation.isPending}
                   >
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Verify Alumni
@@ -879,16 +926,19 @@ export default function CollegeApprovals() {
                 Cancel
               </Button>
               <Button
+                type="button"
                 variant="destructive"
-                onClick={() => {
-                  if (selectedAlumni) {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (selectedAlumni && rejectionReason.trim()) {
                     rejectAlumniMutation.mutate({
                       alumniUserId: selectedAlumni.user_id,
                       reason: rejectionReason,
                     });
                   }
                 }}
-                disabled={rejectAlumniMutation.isPending || !rejectionReason.trim()}
+                disabled={rejectAlumniMutation.isPending || approveAlumniMutation.isPending || !rejectionReason.trim()}
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Reject
