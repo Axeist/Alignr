@@ -6,10 +6,9 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Briefcase, Users, TrendingUp, Plus, ArrowRight, CheckCircle2, Clock, AlertTriangle, ShieldCheck, XCircle } from "lucide-react";
+import { Briefcase, Users, TrendingUp, Plus, ArrowRight, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AlumniDashboard() {
   const { user } = useAuth();
@@ -22,25 +21,6 @@ export default function AlumniDashboard() {
     { label: "Candidates", href: "/alumni/candidates" },
     { label: "Profile", href: "/alumni/profile" },
   ];
-
-  // Fetch profile with verification status
-  const { data: profile } = useQuery({
-    queryKey: ["alumni-profile", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*, colleges(name)")
-        .eq("user_id", user.id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user
-  });
-
-  const verificationStatus = profile?.alumni_verification_status;
-  const collegeName = profile?.colleges?.name;
 
   // Fetch posted jobs
   const { data: jobs } = useQuery({
@@ -110,59 +90,6 @@ export default function AlumniDashboard() {
           <h1 className="text-4xl font-bold mb-2">Alumni Dashboard</h1>
           <p className="text-gray-400">Manage your job postings and candidates</p>
         </motion.div>
-
-        {/* Verification Status Banner */}
-        {verificationStatus === "pending" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Alert className="bg-yellow-500/10 border-yellow-500/30 mb-6">
-              <Clock className="h-5 w-5 text-yellow-500" />
-              <AlertTitle className="text-yellow-500">Verification Pending</AlertTitle>
-              <AlertDescription className="text-gray-300">
-                Your alumni/startup account is pending verification by {collegeName || "your college representative"}. 
-                Once verified, your job postings will be visible to students from your institution.
-                You can still post jobs, but they will require approval before students can view them.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
-
-        {verificationStatus === "approved" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Alert className="bg-green-500/10 border-green-500/30 mb-6">
-              <ShieldCheck className="h-5 w-5 text-green-500" />
-              <AlertTitle className="text-green-500">Verified Alumni</AlertTitle>
-              <AlertDescription className="text-gray-300">
-                Your account is verified by {collegeName || "your institution"}. 
-                Your approved job postings are visible to students from your institution.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
-
-        {verificationStatus === "rejected" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Alert className="bg-red-500/10 border-red-500/30 mb-6">
-              <XCircle className="h-5 w-5 text-red-500" />
-              <AlertTitle className="text-red-500">Verification Rejected</AlertTitle>
-              <AlertDescription className="text-gray-300">
-                Your alumni verification was rejected. 
-                {profile?.alumni_rejection_reason && (
-                  <span className="block mt-1">Reason: {profile.alumni_rejection_reason}</span>
-                )}
-                Please contact your college representative or update your profile with correct information.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
 
         {/* Metric Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

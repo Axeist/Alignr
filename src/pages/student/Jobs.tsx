@@ -435,18 +435,20 @@ export default function JobBoard() {
                                   <p className="text-gray-400">{job.company_name}</p>
                                 </div>
                                 <div className="flex gap-2">
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-green-500/10 text-green-400 border-green-500/30"
-                                  >
-                                    Verified
-                                  </Badge>
+                                  {job.status === "pending" && (
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                                    >
+                                      New from Alumni
+                                    </Badge>
+                                  )}
                                   <Badge
                                     variant="outline"
                                     className="ml-2"
                                     style={{ borderColor: getScoreColor(matchScore) }}
                                   >
-                                    {job.college_id ? "Your Institution" : "Open to All"}
+                                    {job.college_id ? "Your College" : "Open"}
                                   </Badge>
                                 </div>
                               </div>
