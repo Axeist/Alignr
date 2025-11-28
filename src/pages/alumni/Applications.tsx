@@ -144,7 +144,24 @@ export default function AlumniApplications() {
         .update({ status })
         .eq("id", appId);
       if (error) throw error;
-      return { studentId };
+      return { appId, status, studentId };
+    },
+    onMutate: async ({ appId, status }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["alumni-applications"] });
+
+      // Snapshot the previous value
+      const previousApplications = queryClient.getQueryData(["alumni-applications", user?.id, jobIdFilter]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(["alumni-applications", user?.id, jobIdFilter], (old: any) => {
+        if (!old) return old;
+        return old.map((app: any) =>
+          app.id === appId ? { ...app, status } : app
+        );
+      });
+
+      return { previousApplications };
     },
     onSuccess: (data, variables) => {
       const statusMessages: Record<string, string> = {
@@ -158,7 +175,7 @@ export default function AlumniApplications() {
         description: statusMessages[variables.status] || "Application status has been updated.",
       });
       
-      // Invalidate alumni applications query
+      // Invalidate and refetch alumni applications query
       queryClient.invalidateQueries({ queryKey: ["alumni-applications"] });
       
       // Invalidate student's applications query if we have studentId
@@ -169,7 +186,12 @@ export default function AlumniApplications() {
       // Also invalidate all applications queries to ensure sync
       queryClient.invalidateQueries({ queryKey: ["applications"] });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // Rollback to the previous value on error
+      if (context?.previousApplications) {
+        queryClient.setQueryData(["alumni-applications", user?.id, jobIdFilter], context.previousApplications);
+      }
+      
       toast({
         title: "Error updating status",
         description: error.message,
