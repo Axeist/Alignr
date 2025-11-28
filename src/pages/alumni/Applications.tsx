@@ -80,9 +80,13 @@ export default function AlumniApplications() {
         throw error;
       }
       
-      // Fetch profiles separately for each application
+      // Fetch profiles and resumes separately for each application
       if (data && data.length > 0) {
         const studentIds = [...new Set(data.map((app: any) => app.student_id || app.user_id).filter(Boolean))];
+        const resumeIds = [...new Set(data.map((app: any) => app.resume_id).filter(Boolean))];
+        
+        // Fetch profiles
+        let profilesMap = new Map();
         if (studentIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
             .from("profiles")
@@ -92,15 +96,40 @@ export default function AlumniApplications() {
           if (profilesError) {
             console.error("Error fetching profiles:", profilesError);
             // Continue without profiles rather than failing completely
+          } else {
+            profilesMap = new Map(profilesData?.map((p: any) => [p.user_id, p]) || []);
           }
+        }
+        
+        // Fetch resumes
+        let resumesMap = new Map();
+        if (resumeIds.length > 0) {
+          const { data: resumesData, error: resumesError } = await supabase
+            .from("resumes")
+            .select("id, file_url, version_label")
+            .in("id", resumeIds);
           
-          // Map profiles to applications
-          const profilesMap = new Map(profilesData?.map((p: any) => [p.user_id, p]) || []);
-          return data.map((app: any) => ({
+          if (resumesError) {
+            console.error("Error fetching resumes:", resumesError);
+            // Continue without resumes rather than failing completely
+          } else {
+            resumesMap = new Map(resumesData?.map((r: any) => [r.id, r]) || []);
+          }
+        }
+        
+        // Map profiles and resumes to applications
+        return data.map((app: any) => {
+          const resume = app.resume_id ? resumesMap.get(app.resume_id) : null;
+          // Use resume file_url if available, otherwise fall back to resume_url
+          const resumeUrl = resume?.file_url || app.resume_url || null;
+          
+          return {
             ...app,
             profiles: profilesMap.get(app.student_id || app.user_id) || null,
-          }));
-        }
+            resume: resume,
+            resume_url: resumeUrl,
+          };
+        });
       }
       
       return data || [];
@@ -357,7 +386,7 @@ export default function AlumniApplications() {
 
         {/* View Application Dialog */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             {selectedApplication && (
               <>
                 <DialogHeader>
@@ -374,16 +403,58 @@ export default function AlumniApplications() {
                     </p>
                   </div>
                   {selectedApplication.resume_url && (
-                    <div>
-                      <a
-                        href={selectedApplication.resume_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-primary hover:underline"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download Resume
-                      </a>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">Resume</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                          >
+                            <a
+                              href={selectedApplication.resume_url}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </a>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              window.open(selectedApplication.resume_url, "_blank");
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Open in New Tab
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="border rounded-lg overflow-hidden bg-gray-900/50">
+                        <iframe
+                          src={`${selectedApplication.resume_url}#toolbar=0`}
+                          className="w-full h-[600px]"
+                          title="Resume Preview"
+                          style={{ border: "none" }}
+                        />
+                        <p className="text-xs text-gray-500 p-2 bg-gray-800/50">
+                          If the resume doesn't load, use the "Open in New Tab" button above.
+                        </p>
+                      </div>
+                      {selectedApplication.resume?.version_label && (
+                        <p className="text-xs text-gray-400">
+                          Resume Version: {selectedApplication.resume.version_label}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {!selectedApplication.resume_url && (
+                    <div className="text-sm text-gray-400 italic">
+                      No resume provided with this application.
                     </div>
                   )}
                 </div>
