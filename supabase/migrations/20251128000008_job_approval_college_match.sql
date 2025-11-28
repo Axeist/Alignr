@@ -200,8 +200,71 @@ GRANT EXECUTE ON FUNCTION approve_job(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION reject_job(UUID, UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_pending_jobs_for_college(UUID) TO authenticated;
 
+-- Create a function to get all jobs for a college (pending, approved, rejected)
+-- This function returns all jobs posted by alumni of the specified college
+CREATE OR REPLACE FUNCTION get_all_jobs_for_college(p_college_id UUID)
+RETURNS TABLE (
+  id UUID,
+  title TEXT,
+  company_name TEXT,
+  description TEXT,
+  requirements TEXT,
+  location TEXT,
+  job_type TEXT,
+  experience_level TEXT,
+  salary_range TEXT,
+  status TEXT,
+  posted_by UUID,
+  college_id UUID,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ,
+  approved_by UUID,
+  poster_full_name TEXT,
+  poster_email TEXT,
+  poster_alumni_status TEXT,
+  poster_alumni_number TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    j.id,
+    j.title,
+    j.company_name,
+    j.description,
+    j.requirements,
+    j.location,
+    j.job_type,
+    j.experience_level,
+    j.salary_range,
+    j.status::TEXT,
+    j.posted_by,
+    j.college_id,
+    j.created_at,
+    j.updated_at,
+    j.approved_at,
+    j.approved_by,
+    p.full_name AS poster_full_name,
+    p.email AS poster_email,
+    p.alumni_verification_status AS poster_alumni_status,
+    p.alumni_startup_number AS poster_alumni_number
+  FROM jobs j
+  INNER JOIN profiles p ON j.posted_by = p.user_id
+  WHERE p.college_id = p_college_id
+    AND p.role = 'alumni'
+  ORDER BY j.created_at DESC;
+END;
+$$;
+
+-- Grant execute permissions on new/updated functions
+GRANT EXECUTE ON FUNCTION get_all_jobs_for_college(UUID) TO authenticated;
+
 -- Add comments for documentation
 COMMENT ON FUNCTION approve_job(UUID, UUID) IS 'Approves a job posting. College reps can only approve jobs from alumni of their own college, similar to alumni verification.';
 COMMENT ON FUNCTION reject_job(UUID, UUID, TEXT) IS 'Rejects a job posting. College reps can only reject jobs from alumni of their own college, similar to alumni verification.';
 COMMENT ON FUNCTION get_pending_jobs_for_college(UUID) IS 'Returns pending job postings from alumni of the specified college, ensuring college-specific approval workflow.';
+COMMENT ON FUNCTION get_all_jobs_for_college(UUID) IS 'Returns all job postings (pending, approved, rejected) from alumni of the specified college.';
 

@@ -46,6 +46,8 @@ export default function CollegeApprovals() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("alumni");
   const [searchQuery, setSearchQuery] = useState("");
+  const [alumniFilter, setAlumniFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [jobsFilter, setJobsFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [selectedAlumni, setSelectedAlumni] = useState<any>(null);
   const [viewJobDialogOpen, setViewJobDialogOpen] = useState(false);
@@ -98,7 +100,7 @@ export default function CollegeApprovals() {
     enabled: !!collegeId,
   });
 
-  // Separate pending and verified alumni
+  // Separate alumni by status
   const pendingAlumni = allAlumni?.filter(
     (alumni: any) => !alumni.alumni_verification_status || alumni.alumni_verification_status === "pending"
   ) || [];
@@ -107,13 +109,17 @@ export default function CollegeApprovals() {
     (alumni: any) => alumni.alumni_verification_status === "approved"
   ) || [];
 
-  // Fetch pending jobs using the database function that ensures college match
-  const { data: pendingJobs, isLoading: jobsLoading } = useQuery({
-    queryKey: ["pending-jobs", collegeId],
+  const rejectedAlumni = allAlumni?.filter(
+    (alumni: any) => alumni.alumni_verification_status === "rejected"
+  ) || [];
+
+  // Fetch all jobs using the database function that ensures college match
+  const { data: allJobs, isLoading: jobsLoading } = useQuery({
+    queryKey: ["all-jobs", collegeId],
     queryFn: async () => {
       if (!collegeId) return [];
       const { data, error } = await supabase
-        .rpc("get_pending_jobs_for_college", { p_college_id: collegeId });
+        .rpc("get_all_jobs_for_college", { p_college_id: collegeId });
       if (error) throw error;
       // Transform the data to match the expected format
       return (data || []).map((job: any) => ({
@@ -129,21 +135,11 @@ export default function CollegeApprovals() {
     enabled: !!collegeId,
   });
 
-  // Fetch approved jobs count
-  const { data: approvedJobsCount } = useQuery({
-    queryKey: ["approved-jobs-count", collegeId],
-    queryFn: async () => {
-      if (!collegeId) return 0;
-      const { count, error } = await supabase
-        .from("jobs")
-        .select("*", { count: "exact", head: true })
-        .eq("college_id", collegeId)
-        .eq("status", "approved");
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: !!collegeId,
-  });
+  // Separate jobs by status
+  const pendingJobs = allJobs?.filter((job: any) => job.status === "pending") || [];
+  const approvedJobs = allJobs?.filter((job: any) => job.status === "approved") || [];
+  const rejectedJobs = allJobs?.filter((job: any) => job.status === "rejected") || [];
+
 
   // Approve alumni mutation
   const approveAlumniMutation = useMutation({
@@ -358,8 +354,7 @@ export default function CollegeApprovals() {
         title: "Job Approved",
         description: "The job has been approved and is now visible to students.",
       });
-      queryClient.invalidateQueries({ queryKey: ["pending-jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["approved-jobs-count"] });
+      queryClient.invalidateQueries({ queryKey: ["all-jobs", collegeId] });
       queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] }); // Invalidate alumni jobs so they see the status update
       setViewJobDialogOpen(false);
     },
@@ -390,7 +385,7 @@ export default function CollegeApprovals() {
         title: "Job Rejected",
         description: "The job has been rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ["pending-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["all-jobs", collegeId] });
       queryClient.invalidateQueries({ queryKey: ["alumni-jobs"] }); // Invalidate alumni jobs so they see the status update
       setViewJobDialogOpen(false);
     },
@@ -406,24 +401,57 @@ export default function CollegeApprovals() {
   const stats = {
     pendingAlumni: pendingAlumni?.length || 0,
     verifiedAlumni: verifiedAlumni?.length || 0,
+    rejectedAlumni: rejectedAlumni?.length || 0,
+    totalAlumni: allAlumni?.length || 0,
     pendingJobs: pendingJobs?.length || 0,
-    approvedJobs: approvedJobsCount || 0,
+    approvedJobs: approvedJobs?.length || 0,
+    rejectedJobs: rejectedJobs?.length || 0,
+    totalJobs: allJobs?.length || 0,
   };
 
-  // Combine pending and verified alumni for display
-  const allAlumniForDisplay = [...pendingAlumni, ...verifiedAlumni];
-  
-  const filteredAlumni = allAlumniForDisplay.filter((alumni: any) =>
-    alumni.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    alumni.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    alumni.alumni_startup_number?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter alumni based on selected filter
+  const getFilteredAlumni = () => {
+    let filtered = allAlumni || [];
+    
+    if (alumniFilter === "pending") {
+      filtered = pendingAlumni;
+    } else if (alumniFilter === "approved") {
+      filtered = verifiedAlumni;
+    } else if (alumniFilter === "rejected") {
+      filtered = rejectedAlumni;
+    }
+    
+    // Apply search filter
+    return filtered.filter((alumni: any) =>
+      alumni.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alumni.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alumni.alumni_startup_number?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
 
-  const filteredJobs = pendingJobs?.filter((job: any) =>
-    job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredAlumni = getFilteredAlumni();
+
+  // Filter jobs based on selected filter
+  const getFilteredJobs = () => {
+    let filtered = allJobs || [];
+    
+    if (jobsFilter === "pending") {
+      filtered = pendingJobs;
+    } else if (jobsFilter === "approved") {
+      filtered = approvedJobs;
+    } else if (jobsFilter === "rejected") {
+      filtered = rejectedJobs;
+    }
+    
+    // Apply search filter
+    return filtered.filter((job: any) =>
+      job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  const filteredJobs = getFilteredJobs();
 
   return (
     <DashboardLayout navItems={navItems}>
@@ -440,7 +468,7 @@ export default function CollegeApprovals() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -470,11 +498,39 @@ export default function CollegeApprovals() {
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-blue-500/20">
-                  <Briefcase className="h-6 w-6 text-blue-500" />
+                <div className="p-3 rounded-full bg-red-500/20">
+                  <UserX className="h-6 w-6 text-red-500" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-blue-500">{stats.pendingJobs}</div>
+                  <div className="text-2xl font-bold text-red-500">{stats.rejectedAlumni}</div>
+                  <div className="text-sm text-gray-400">Rejected Alumni</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-blue-500/20">
+                  <Users className="h-6 w-6 text-blue-500" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-blue-500">{stats.totalAlumni}</div>
+                  <div className="text-sm text-gray-400">Total Alumni</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-yellow-500/20">
+                  <Briefcase className="h-6 w-6 text-yellow-500" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-yellow-500">{stats.pendingJobs}</div>
                   <div className="text-sm text-gray-400">Pending Jobs</div>
                 </div>
               </div>
@@ -483,12 +539,38 @@ export default function CollegeApprovals() {
           <Card className="glass-hover">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-purple-500/20">
-                  <CheckCircle2 className="h-6 w-6 text-purple-500" />
+                <div className="p-3 rounded-full bg-green-500/20">
+                  <CheckCircle2 className="h-6 w-6 text-green-500" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-purple-500">{stats.approvedJobs}</div>
-                  <div className="text-sm text-gray-400">Active Jobs</div>
+                  <div className="text-2xl font-bold text-green-500">{stats.approvedJobs}</div>
+                  <div className="text-sm text-gray-400">Approved Jobs</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-red-500/20">
+                  <XCircle className="h-6 w-6 text-red-500" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-red-500">{stats.rejectedJobs}</div>
+                  <div className="text-sm text-gray-400">Rejected Jobs</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="glass-hover">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-purple-500/20">
+                  <Briefcase className="h-6 w-6 text-purple-500" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-500">{stats.totalJobs}</div>
+                  <div className="text-sm text-gray-400">Total Jobs</div>
                 </div>
               </div>
             </CardContent>
@@ -515,16 +597,50 @@ export default function CollegeApprovals() {
           <TabsList className="glass">
             <TabsTrigger value="alumni">
               <Users className="h-4 w-4 mr-2" />
-              Alumni/Startups ({stats.pendingAlumni})
+              Alumni/Startups ({stats.totalAlumni})
             </TabsTrigger>
             <TabsTrigger value="jobs">
               <Briefcase className="h-4 w-4 mr-2" />
-              Job Postings ({stats.pendingJobs})
+              Job Postings ({stats.totalJobs})
             </TabsTrigger>
           </TabsList>
 
           {/* Alumni/Startups Tab */}
           <TabsContent value="alumni" className="space-y-4 mt-6">
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={alumniFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAlumniFilter("all")}
+              >
+                All ({stats.totalAlumni})
+              </Button>
+              <Button
+                variant={alumniFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAlumniFilter("pending")}
+                className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border-yellow-500"
+              >
+                Pending ({stats.pendingAlumni})
+              </Button>
+              <Button
+                variant={alumniFilter === "approved" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAlumniFilter("approved")}
+                className="bg-green-500/20 hover:bg-green-500/30 text-green-500 border-green-500"
+              >
+                Verified ({stats.verifiedAlumni})
+              </Button>
+              <Button
+                variant={alumniFilter === "rejected" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAlumniFilter("rejected")}
+                className="bg-red-500/20 hover:bg-red-500/30 text-red-500 border-red-500"
+              >
+                Rejected ({stats.rejectedAlumni})
+              </Button>
+            </div>
             {alumniLoading ? (
               <div className="text-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
@@ -683,6 +799,40 @@ export default function CollegeApprovals() {
 
           {/* Jobs Tab */}
           <TabsContent value="jobs" className="space-y-4 mt-6">
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={jobsFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJobsFilter("all")}
+              >
+                All ({stats.totalJobs})
+              </Button>
+              <Button
+                variant={jobsFilter === "pending" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJobsFilter("pending")}
+                className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border-yellow-500"
+              >
+                Pending ({stats.pendingJobs})
+              </Button>
+              <Button
+                variant={jobsFilter === "approved" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJobsFilter("approved")}
+                className="bg-green-500/20 hover:bg-green-500/30 text-green-500 border-green-500"
+              >
+                Approved ({stats.approvedJobs})
+              </Button>
+              <Button
+                variant={jobsFilter === "rejected" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJobsFilter("rejected")}
+                className="bg-red-500/20 hover:bg-red-500/30 text-red-500 border-red-500"
+              >
+                Rejected ({stats.rejectedJobs})
+              </Button>
+            </div>
             {jobsLoading ? (
               <div className="text-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
@@ -692,8 +842,10 @@ export default function CollegeApprovals() {
               <Card className="glass-hover">
                 <CardContent className="pt-12 pb-12 text-center">
                   <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No pending job approvals</h3>
-                  <p className="text-gray-400">All job postings have been reviewed.</p>
+                  <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
+                  <p className="text-gray-400">
+                    {searchQuery ? "No jobs match your search criteria." : "No job postings found for the selected filter."}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -711,9 +863,21 @@ export default function CollegeApprovals() {
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <CardTitle className="text-xl">{job.title}</CardTitle>
-                              <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">
-                                Pending
-                              </Badge>
+                              {job.status === "approved" ? (
+                                <Badge className="bg-green-500/20 text-green-500 border-green-500">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Approved
+                                </Badge>
+                              ) : job.status === "rejected" ? (
+                                <Badge className="bg-red-500/20 text-red-500 border-red-500">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Rejected
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500">
+                                  Pending
+                                </Badge>
+                              )}
                               {job.profiles?.alumni_verification_status !== "approved" && (
                                 <Badge variant="outline" className="border-orange-500 text-orange-500">
                                   <AlertTriangle className="h-3 w-3 mr-1" />
@@ -749,26 +913,30 @@ export default function CollegeApprovals() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-green-500 text-green-500 hover:bg-green-500/10"
+                            {job.status === "pending" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-green-500 text-green-500 hover:bg-green-500/10"
                               onClick={() => approveJobMutation.mutate(job.id)}
                               disabled={approveJobMutation.isPending}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Approve
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-red-500 text-red-500 hover:bg-red-500/10"
-                              onClick={() => rejectJobMutation.mutate(job.id)}
-                              disabled={rejectJobMutation.isPending}
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Reject
-                            </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-red-500 text-red-500 hover:bg-red-500/10"
+                                  onClick={() => rejectJobMutation.mutate(job.id)}
+                                  disabled={rejectJobMutation.isPending}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                       </CardHeader>
