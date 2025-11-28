@@ -37,8 +37,10 @@ export default function CollegeEvents() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [eventToEdit, setEventToEdit] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -75,18 +77,38 @@ export default function CollegeEvents() {
 
   const collegeId = profile?.college_id;
 
-  // Fetch events
+  // Fetch events with organizer profile information
   const { data: events, isLoading } = useQuery({
     queryKey: ["college-events", collegeId],
     queryFn: async () => {
       if (!collegeId) return [];
-      const { data, error } = await supabase
+      const { data: eventsData, error } = await supabase
         .from("college_events")
         .select("*")
         .eq("college_id", collegeId)
         .order("event_date", { ascending: true });
       if (error) throw error;
-      return data || [];
+      
+      // Fetch organizer profiles for all events
+      if (eventsData && eventsData.length > 0) {
+        const organizerIds = [...new Set(eventsData.map((e: any) => e.organizer_id).filter(Boolean))];
+        if (organizerIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("user_id, role")
+            .in("user_id", organizerIds);
+          
+          const profilesMap = new Map((profilesData || []).map((p: any) => [p.user_id, p]));
+          
+          // Add organizer info to each event
+          return eventsData.map((event: any) => ({
+            ...event,
+            organizer: profilesMap.get(event.organizer_id) || null,
+          }));
+        }
+      }
+      
+      return eventsData || [];
     },
     enabled: !!collegeId,
   });
@@ -133,6 +155,51 @@ export default function CollegeEvents() {
     onError: (error: any) => {
       toast({
         title: "Error creating event",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: async ({ eventId, data }: { eventId: string; data: typeof formData }) => {
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+      
+      const { data: event, error } = await supabase
+        .from("college_events")
+        .update({
+          title: data.title,
+          description: data.description,
+          event_date: data.event_date,
+          location: data.location,
+          registration_link: data.registration_link || null,
+        })
+        .eq("id", eventId)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error("Error updating event:", error);
+        throw error;
+      }
+      
+      return event;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Event updated successfully!",
+        description: "The event has been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["college-events"] });
+      setEditDialogOpen(false);
+      setEventToEdit(null);
+      setFormData({ title: "", description: "", event_date: "", location: "", registration_link: "" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating event",
         description: error.message,
         variant: "destructive",
       });
@@ -214,6 +281,31 @@ export default function CollegeEvents() {
     } catch {
       return dateString;
     }
+  };
+
+  const handleEditEvent = (event: any) => {
+    setEventToEdit(event);
+    // Format datetime-local value (remove timezone info)
+    const eventDate = new Date(event.event_date);
+    const year = eventDate.getFullYear();
+    const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+    const day = String(eventDate.getDate()).padStart(2, '0');
+    const hours = String(eventDate.getHours()).padStart(2, '0');
+    const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+    const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+    
+    setFormData({
+      title: event.title || "",
+      description: event.description || "",
+      event_date: datetimeLocal,
+      location: event.location || "",
+      registration_link: event.registration_link || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const isAlumniEvent = (event: any) => {
+    return event.organizer?.role === 'alumni' && event.organizer_id === user?.id;
   };
 
   return (
@@ -351,16 +443,27 @@ export default function CollegeEvents() {
                             Upcoming
                           </Badge>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEventToDelete(event.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        <div className="flex gap-1">
+                          {isAlumniEvent(event) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditEvent(event)}
+                            >
+                              <Edit className="h-4 w-4 text-blue-500" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEventToDelete(event.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -441,6 +544,72 @@ export default function CollegeEvents() {
             </div>
           </div>
         )}
+
+        {/* Edit Event Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Event</DialogTitle>
+              <DialogDescription>Update event details</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Event Title</Label>
+                <Input
+                  id="edit-title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., Career Development Workshop"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-event_date">Event Date & Time</Label>
+                <Input
+                  id="edit-event_date"
+                  type="datetime-local"
+                  value={formData.event_date}
+                  onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-location">Location</Label>
+                <Input
+                  id="edit-location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g., Main Auditorium"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Event description..."
+                  rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-registration_link">Registration Link (Optional)</Label>
+                <Input
+                  id="edit-registration_link"
+                  type="url"
+                  value={formData.registration_link}
+                  onChange={(e) => setFormData({ ...formData, registration_link: e.target.value })}
+                  placeholder="https://example.com/register"
+                />
+              </div>
+              <Button
+                className="w-full gradient-primary"
+                onClick={() => eventToEdit && updateEventMutation.mutate({ eventId: eventToEdit.id, data: formData })}
+                disabled={updateEventMutation.isPending}
+              >
+                {updateEventMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
