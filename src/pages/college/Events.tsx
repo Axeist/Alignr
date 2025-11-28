@@ -361,13 +361,38 @@ export default function CollegeEvents() {
                 >
                   <Card className="glass-hover opacity-75">
                     <CardHeader>
-                      <CardTitle className="text-lg">{event.title}</CardTitle>
-                      <Badge variant="outline">Past</Badge>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{event.title}</CardTitle>
+                          <Badge variant="outline" className="mt-2">Past</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEventToDelete(event.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Calendar className="h-4 w-4" />
-                        {formatDate(event.event_date)}
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Calendar className="h-4 w-4" />
+                          {formatDate(event.event_date)}
+                        </div>
+                        {event.location && (
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <MapPin className="h-4 w-4" />
+                            {event.location}
+                          </div>
+                        )}
+                        {event.description && (
+                          <p className="text-sm text-gray-300 line-clamp-2">{event.description}</p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
