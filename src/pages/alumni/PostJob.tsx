@@ -135,10 +135,17 @@ export default function PostJob() {
         }
       }
 
-      // If no college selected but alumni has a college_id in profile, use that
+      // CRITICAL FIX: Always use alumni's profile college_id as fallback
+      // This ensures jobs appear in the college approval page
+      // Even if "all" colleges is selected, we need a college_id for approval workflow
       if (!finalCollegeId && profile?.college_id) {
         finalCollegeId = profile.college_id;
-        console.log("Job posting - Using profile college_id:", finalCollegeId);
+        console.log("Job posting - Using profile college_id as fallback:", finalCollegeId);
+      }
+
+      // If still no college_id, throw an error - alumni must have a college_id to post jobs
+      if (!finalCollegeId) {
+        throw new Error("Cannot post job: Alumni profile must have a college_id. Please update your profile.");
       }
 
       console.log("Job posting - Final college_id:", finalCollegeId);
