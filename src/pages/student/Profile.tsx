@@ -31,6 +31,7 @@ interface ProfileData {
   year: number | null;
   department: string | null;
   college_id: string | null;
+  registration_number: string | null;
   college: {
     id: string;
     name: string;
@@ -107,6 +108,7 @@ export default function StudentProfile() {
         year: (profileData as any).year || null,
         department: (profileData as any).department || null,
         college_id: profileData.college_id || null,
+        registration_number: (profileData as any).registration_number || null,
         college: collegeData,
       };
     },
@@ -371,6 +373,19 @@ export default function StudentProfile() {
                       <p className="text-xs text-gray-500">Email cannot be changed</p>
                     </div>
                   </div>
+
+                  {profile?.registration_number && (
+                    <div className="space-y-2">
+                      <Label htmlFor="registration_number">Registration Number</Label>
+                      <Input
+                        id="registration_number"
+                        value={profile.registration_number}
+                        disabled
+                        className="bg-gray-100"
+                      />
+                      <p className="text-xs text-gray-500">Registration number cannot be changed</p>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
