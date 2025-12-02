@@ -95,15 +95,17 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                     </Badge>
                   </div>
                   {app.status === "shortlisted" && onScheduleInterview && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full mt-2 border-primary text-primary hover:bg-primary/10"
-                      onClick={() => onScheduleInterview(app)}
-                    >
-                      <Calendar className="h-3 w-3 mr-2" />
-                      Schedule Interview
-                    </Button>
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-primary text-primary hover:bg-primary/10"
+                        onClick={() => onScheduleInterview(app)}
+                      >
+                        <Calendar className="h-3 w-3 mr-2" />
+                        Schedule Interview
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
