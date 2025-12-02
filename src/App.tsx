@@ -35,6 +35,7 @@ import AlumniProfile from "./pages/alumni/Profile";
 import PostJob from "./pages/alumni/PostJob";
 import AlumniJobs from "./pages/alumni/Jobs";
 import AlumniApplications from "./pages/alumni/Applications";
+import AlumniInterviews from "./pages/alumni/Interviews";
 import Candidates from "./pages/alumni/Candidates";
 
 // College Pages
@@ -93,6 +94,7 @@ const App = () => (
           <Route path="/alumni/post-job" element={<ProtectedRoute allowedRoles={["alumni"]}><PostJob /></ProtectedRoute>} />
           <Route path="/alumni/jobs" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniJobs /></ProtectedRoute>} />
           <Route path="/alumni/applications" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniApplications /></ProtectedRoute>} />
+          <Route path="/alumni/interviews" element={<ProtectedRoute allowedRoles={["alumni"]}><AlumniInterviews /></ProtectedRoute>} />
           <Route path="/alumni/candidates" element={<ProtectedRoute allowedRoles={["alumni"]}><Candidates /></ProtectedRoute>} />
           
           {/* College Routes */}

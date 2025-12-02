@@ -13,13 +13,27 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  FileText
+  FileText,
+  Video,
+  Phone,
+  MapPin
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 // Install @hello-pangea/dnd if not available - using a simple implementation for now
-const KanbanColumn = ({ title, status, applications, onDragEnd }: any) => {
+const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview }: any) => {
   return (
     <Card className="glass-hover flex-1 min-w-[250px]">
       <CardHeader>
@@ -80,6 +94,17 @@ const KanbanColumn = ({ title, status, applications, onDragEnd }: any) => {
                         : ""}
                     </Badge>
                   </div>
+                  {app.status === "shortlisted" && onScheduleInterview && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full mt-2 border-primary text-primary hover:bg-primary/10"
+                      onClick={() => onScheduleInterview(app)}
+                    >
+                      <Calendar className="h-3 w-3 mr-2" />
+                      Schedule Interview
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -98,6 +123,14 @@ const KanbanColumn = ({ title, status, applications, onDragEnd }: any) => {
 export default function Applications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [interviewDate, setInterviewDate] = useState("");
+  const [interviewTime, setInterviewTime] = useState("");
+  const [interviewMode, setInterviewMode] = useState<string>("");
+  const [meetingLink, setMeetingLink] = useState("");
+  const [location, setLocation] = useState("");
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -143,6 +176,105 @@ export default function Applications() {
       queryClient.invalidateQueries({ queryKey: ["applications", user?.id] });
     }
   });
+
+  // Schedule interview mutation
+  const scheduleInterviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedApplication || !user) throw new Error("Missing application or user");
+      
+      // Get job details to find alumni_id
+      const { data: job, error: jobError } = await supabase
+        .from("jobs")
+        .select("posted_by")
+        .eq("id", selectedApplication.job_id)
+        .single();
+      
+      if (jobError || !job) throw new Error("Could not find job details");
+      
+      // Create interview record
+      const { error: interviewError } = await supabase
+        .from("interviews")
+        .insert({
+          application_id: selectedApplication.id,
+          student_id: user.id,
+          alumni_id: job.posted_by,
+          job_id: selectedApplication.job_id,
+          interview_date: interviewDate,
+          interview_time: interviewTime,
+          mode: interviewMode,
+          status: "pending",
+          meeting_link: interviewMode === "online" || interviewMode === "video_call" ? meetingLink : null,
+          location: interviewMode === "offline" ? location : null,
+        });
+      
+      if (interviewError) throw interviewError;
+      
+      // Update application status to interview_scheduled
+      const { error: statusError } = await supabase
+        .from("applications")
+        .update({ status: "interview_scheduled" })
+        .eq("id", selectedApplication.id);
+      
+      if (statusError) throw statusError;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Interview scheduled",
+        description: "Your interview has been scheduled successfully.",
+      });
+      setScheduleDialogOpen(false);
+      setInterviewDate("");
+      setInterviewTime("");
+      setInterviewMode("");
+      setMeetingLink("");
+      setLocation("");
+      setSelectedApplication(null);
+      queryClient.invalidateQueries({ queryKey: ["applications", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error scheduling interview",
+        description: error.message || "Failed to schedule interview. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleScheduleInterview = (app: any) => {
+    setSelectedApplication(app);
+    setScheduleDialogOpen(true);
+  };
+
+  const handleSubmitSchedule = () => {
+    if (!interviewDate || !interviewTime || !interviewMode) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if ((interviewMode === "online" || interviewMode === "video_call") && !meetingLink) {
+      toast({
+        title: "Missing meeting link",
+        description: "Please provide a meeting link for online interviews.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (interviewMode === "offline" && !location) {
+      toast({
+        title: "Missing location",
+        description: "Please provide a location for offline interviews.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    scheduleInterviewMutation.mutate();
+  };
 
   const handleDragEnd = (result: any) => {
     if (!result.destination) return;
@@ -291,6 +423,7 @@ export default function Applications() {
                   status={column.status}
                   applications={columnApps}
                   icon={column.icon}
+                  onScheduleInterview={handleScheduleInterview}
                 />
               );
             })}
@@ -343,6 +476,17 @@ export default function Applications() {
                           ? "Pending Review"
                           : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                       </Badge>
+                      {app.status === "shortlisted" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-primary text-primary hover:bg-primary/10"
+                          onClick={() => handleScheduleInterview(app)}
+                        >
+                          <Calendar className="h-3 w-3 mr-2" />
+                          Schedule Interview
+                        </Button>
+                      )}
                       <span className="text-xs text-gray-400">
                         {new Date(app.applied_at).toLocaleDateString()}
                       </span>
@@ -353,6 +497,120 @@ export default function Applications() {
             </CardContent>
           </Card>
         )}
+
+        {/* Schedule Interview Dialog */}
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Schedule Interview</DialogTitle>
+              <DialogDescription>
+                {selectedApplication && `Schedule an interview for ${selectedApplication.jobs?.title} at ${selectedApplication.jobs?.company_name}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="interview_date">Interview Date *</Label>
+                  <Input
+                    id="interview_date"
+                    type="date"
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="interview_time">Interview Time *</Label>
+                  <Input
+                    id="interview_time"
+                    type="time"
+                    value={interviewTime}
+                    onChange={(e) => setInterviewTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="interview_mode">Mode of Interview *</Label>
+                <Select value={interviewMode} onValueChange={setInterviewMode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select interview mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Online
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="video_call">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Video Call
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="offline">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Offline
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="phone">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Phone
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(interviewMode === "online" || interviewMode === "video_call") && (
+                <div className="space-y-2">
+                  <Label htmlFor="meeting_link">Meeting Link *</Label>
+                  <Input
+                    id="meeting_link"
+                    type="url"
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                  />
+                </div>
+              )}
+              {interviewMode === "offline" && (
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location *</Label>
+                  <Input
+                    id="location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Enter interview location"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setScheduleDialogOpen(false);
+                    setInterviewDate("");
+                    setInterviewTime("");
+                    setInterviewMode("");
+                    setMeetingLink("");
+                    setLocation("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitSchedule}
+                  disabled={scheduleInterviewMutation.isPending}
+                >
+                  {scheduleInterviewMutation.isPending ? "Scheduling..." : "Schedule Interview"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
