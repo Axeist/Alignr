@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 // Install @hello-pangea/dnd if not available - using a simple implementation for now
 const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview }: any) => {
   return (
-    <Card className="glass-hover flex-1 min-w-[250px]">
+    <Card className="glass-hover flex-1 min-w-[280px]">
       <CardHeader>
         <CardTitle className="text-sm font-semibold">{title}</CardTitle>
         <CardDescription>{applications.length} applications</CardDescription>
@@ -99,11 +99,11 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                       <Button
                         size="sm"
                         variant="outline"
-                        className="w-full border-primary text-primary hover:bg-primary/10"
+                        className="w-full border-primary text-primary hover:bg-primary/10 text-xs px-2 py-1.5 h-auto min-h-[32px] flex items-center justify-center gap-1.5"
                         onClick={() => onScheduleInterview(app)}
                       >
-                        <Calendar className="h-3 w-3 mr-2" />
-                        Schedule Interview
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs leading-tight">Schedule Interview</span>
                       </Button>
                     </div>
                   )}
