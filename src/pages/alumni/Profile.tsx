@@ -109,8 +109,9 @@ export default function AlumniProfile() {
     mutationFn: async (updates: any) => {
       if (!user) throw new Error("Not authenticated");
       
-      // Separate college update from other updates
-      const { college_id, ...otherUpdates } = updates;
+      // Separate college update and alumni_startup_number from other updates
+      // alumni_startup_number should not be updatable by the user
+      const { college_id, alumni_startup_number, ...otherUpdates } = updates;
       
       // Update basic profile fields
       const { error: profileError } = await supabase
@@ -365,9 +366,11 @@ export default function AlumniProfile() {
                       value={formData.alumni_startup_number}
                       onChange={(e) => setFormData({ ...formData, alumni_startup_number: e.target.value })}
                       placeholder="Enter your enrollment or certificate number"
+                      disabled
+                      className="bg-gray-100"
                     />
                     <p className="text-xs text-gray-500">
-                      Your Alumni Enrollment Number or Startup Certificate Number
+                      Alumni Enrollment Number cannot be changed
                     </p>
                   </div>
 
