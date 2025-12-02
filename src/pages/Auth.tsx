@@ -110,6 +110,7 @@ export default function Auth() {
   const [collegeCategoryFilter, setCollegeCategoryFilter] = useState<CollegeCategory | "all">("all");
   const [collegeSearchOpen, setCollegeSearchOpen] = useState(false);
   const [alumniStartupNumber, setAlumniStartupNumber] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
 
   // Password validation
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidation>({
@@ -204,8 +205,26 @@ export default function Auth() {
       return;
     }
 
+    // Validate registration number for student role
+    if (role === "student" && !registrationNumber.trim()) {
+      toast({
+        title: "Registration Number Required",
+        description: "Please enter your registration number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    const { error, data } = await signUp(signUpEmail, signUpPassword, fullName, role, selectedCollege, role === "alumni" ? alumniStartupNumber : undefined);
+    const { error, data } = await signUp(
+      signUpEmail, 
+      signUpPassword, 
+      fullName, 
+      role, 
+      selectedCollege, 
+      role === "alumni" ? alumniStartupNumber : undefined,
+      role === "student" ? registrationNumber : undefined
+    );
     setLoading(false);
     if (!error && data?.user) {
       // Wait for role to be fetched
@@ -401,6 +420,10 @@ export default function Auth() {
                     if (value !== "alumni") {
                       setAlumniStartupNumber("");
                     }
+                    // Reset registration number when role changes
+                    if (value !== "student") {
+                      setRegistrationNumber("");
+                    }
                   }}>
                     <SelectTrigger id="role" className="border-gray-300 focus:border-[#0066FF]">
                       <SelectValue />
@@ -412,6 +435,27 @@ export default function Auth() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Registration Number - Only for Students */}
+                {role === "student" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="registration-number" className="text-gray-900">
+                      Registration Number
+                    </Label>
+                    <Input
+                      id="registration-number"
+                      type="text"
+                      placeholder="Enter your registration number"
+                      value={registrationNumber}
+                      onChange={(e) => setRegistrationNumber(e.target.value)}
+                      required
+                      className="border-gray-300 focus:border-[#0066FF] focus:ring-[#0066FF]"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Enter your college registration number
+                    </p>
+                  </div>
+                )}
 
                 {/* Alumni Enrollment / Startup Certificate Number - Only for Alumni/Startup */}
                 {role === "alumni" && (
@@ -570,7 +614,7 @@ export default function Auth() {
                 <Button 
                   type="submit" 
                   className="w-full bg-[#CAFF00] hover:bg-[#B8E600] text-gray-900 font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed" 
-                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms || (role !== "admin" && !selectedCollege) || (role === "alumni" && !alumniStartupNumber.trim())}
+                  disabled={loading || !isPasswordValid || !passwordsMatch || !agreedToTerms || (role !== "admin" && !selectedCollege) || (role === "alumni" && !alumniStartupNumber.trim()) || (role === "student" && !registrationNumber.trim())}
                 >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
