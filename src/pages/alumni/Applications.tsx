@@ -139,11 +139,19 @@ export default function AlumniApplications() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ appId, status, studentId }: { appId: string; status: string; studentId?: string }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("applications")
         .update({ status })
-        .eq("id", appId);
+        .eq("id", appId)
+        .select();
+      
       if (error) throw error;
+      
+      // Verify that the update actually succeeded
+      if (!data || data.length === 0) {
+        throw new Error("Failed to update application. No rows were updated. You may not have permission to update this application.");
+      }
+      
       return { appId, status, studentId };
     },
     onMutate: async ({ appId, status }) => {
