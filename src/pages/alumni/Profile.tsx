@@ -288,7 +288,9 @@ export default function AlumniProfile() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+    // Explicitly exclude alumni_startup_number from updates
+    const { alumni_startup_number, ...updateData } = formData;
+    updateProfileMutation.mutate(updateData);
   };
 
   if (isLoading) {
@@ -363,11 +365,10 @@ export default function AlumniProfile() {
                     <Input
                       id="alumni_startup_number"
                       type="text"
-                      value={formData.alumni_startup_number}
-                      onChange={(e) => setFormData({ ...formData, alumni_startup_number: e.target.value })}
-                      placeholder="Enter your enrollment or certificate number"
+                      value={formData.alumni_startup_number || ""}
                       disabled
                       className="bg-gray-100"
+                      placeholder="Enter your enrollment or certificate number"
                     />
                     <p className="text-xs text-gray-500">
                       Alumni Enrollment Number cannot be changed
