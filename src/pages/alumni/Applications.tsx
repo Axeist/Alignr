@@ -23,6 +23,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ShortlistInterviewModal } from "@/components/ShortlistInterviewModal";
+import { generateRoomId, generateMeetingLink } from "@/lib/meeting";
+import { generateInterviewScheduledEmail } from "@/lib/email-templates";
 
 export default function AlumniApplications() {
   const { user } = useAuth();
@@ -36,6 +39,8 @@ export default function AlumniApplications() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [shortlistModalOpen, setShortlistModalOpen] = useState(false);
+  const [pendingShortlistApp, setPendingShortlistApp] = useState<any>(null);
 
   const navItems = [
     { label: "Dashboard", href: "/alumni/dashboard" },
@@ -122,7 +127,21 @@ export default function AlumniApplications() {
           }
         }
         
-        // Map profiles and resumes to applications
+        // Fetch interviews for applications
+      let interviewsMap = new Map();
+      if (data && data.length > 0) {
+        const applicationIds = data.map((app: any) => app.id);
+        const { data: interviewsData, error: interviewsError } = await supabase
+          .from("interviews")
+          .select("*")
+          .in("application_id", applicationIds);
+        
+        if (!interviewsError && interviewsData) {
+          interviewsMap = new Map(interviewsData.map((i: any) => [i.application_id, i]));
+        }
+      }
+      
+      // Map profiles, resumes, and interviews to applications
         return data.map((app: any) => {
           const resume = app.resume_id ? resumesMap.get(app.resume_id) : null;
           // Use resume file_url if available, otherwise fall back to resume_url
@@ -133,6 +152,7 @@ export default function AlumniApplications() {
             profiles: profilesMap.get(app.student_id || app.user_id) || null,
             resume: resume,
             resume_url: resumeUrl,
+            interview: interviewsMap.get(app.id) || null,
           };
         });
       }
@@ -140,6 +160,153 @@ export default function AlumniApplications() {
       return data || [];
     },
     enabled: !!user && jobIds.length > 0,
+  });
+
+  // Schedule interview mutation (when Proceed is clicked)
+  const scheduleInterviewMutation = useMutation({
+    mutationFn: async ({ application, useProposedSchedule }: { application: any; useProposedSchedule: boolean }) => {
+      if (!user || !application) throw new Error("Missing user or application");
+      
+      // Get student and alumni profiles for email
+      const studentId = application.student_id || application.user_id;
+      const [studentProfile, alumniProfile] = await Promise.all([
+        supabase.from("profiles").select("full_name, email").eq("user_id", studentId).single(),
+        supabase.from("profiles").select("full_name, email").eq("user_id", user.id).single(),
+      ]);
+      
+      const student = studentProfile.data;
+      const alumni = alumniProfile.data;
+      
+      // Determine interview date/time
+      let interviewDate: string;
+      let interviewTime: string;
+      let interviewMode: string = "online";
+      let location: string | null = null;
+      
+      if (useProposedSchedule && application.interview) {
+        // Use student's proposed schedule
+        interviewDate = application.interview.interview_date;
+        interviewTime = application.interview.interview_time;
+        interviewMode = application.interview.mode || "online";
+        location = application.interview.location || null;
+      } else {
+        // Generate default schedule (next business day at 10 AM)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        interviewDate = tomorrow.toISOString().split('T')[0];
+        interviewTime = "10:00:00";
+      }
+      
+      // Generate unique meeting link
+      const roomId = generateRoomId(10);
+      const meetingLink = generateMeetingLink(roomId);
+      
+      // Create or update interview record
+      let interviewId: string;
+      if (application.interview?.id) {
+        // Update existing interview
+        const { data: updatedInterview, error: updateError } = await supabase
+          .from("interviews")
+          .update({
+            interview_date: interviewDate,
+            interview_time: interviewTime,
+            mode: interviewMode,
+            meeting_link: meetingLink,
+            location: location,
+            status: "pending",
+          })
+          .eq("id", application.interview.id)
+          .select()
+          .single();
+        
+        if (updateError) throw updateError;
+        interviewId = updatedInterview.id;
+      } else {
+        // Create new interview
+        const { data: newInterview, error: insertError } = await supabase
+          .from("interviews")
+          .insert({
+            application_id: application.id,
+            student_id: studentId,
+            alumni_id: user.id,
+            job_id: application.job_id,
+            interview_date: interviewDate,
+            interview_time: interviewTime,
+            mode: interviewMode,
+            meeting_link: meetingLink,
+            location: location,
+            status: "pending",
+          })
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+        interviewId = newInterview.id;
+      }
+      
+      // Update application status
+      const { error: statusError } = await supabase
+        .from("applications")
+        .update({ status: "interview_scheduled" })
+        .eq("id", application.id);
+      
+      if (statusError) throw statusError;
+      
+      // Send emails
+      if (student?.email && alumni?.full_name && student?.full_name) {
+        const emailHtml = generateInterviewScheduledEmail({
+          studentName: student.full_name,
+          alumniName: alumni.full_name,
+          interviewDate: interviewDate,
+          interviewTime: interviewTime,
+          meetingLink: meetingLink,
+          jobTitle: application.jobs?.title || "Position",
+          companyName: application.jobs?.company_name || "Company",
+        });
+        
+        // Send email via Edge Function
+        try {
+          await supabase.functions.invoke("send-interview-email", {
+            body: {
+              emailData: {
+                to: student.email,
+                subject: "Your Interview is Scheduled - Alignr",
+                html: emailHtml,
+                studentName: student.full_name,
+                alumniName: alumni.full_name,
+                interviewDate: interviewDate,
+                interviewTime: interviewTime,
+                meetingLink: meetingLink,
+                jobTitle: application.jobs?.title || "Position",
+                companyName: application.jobs?.company_name || "Company",
+              },
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send email:", emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
+      
+      return { interviewId, meetingLink };
+    },
+    onSuccess: () => {
+      toast({
+        title: "Interview scheduled",
+        description: "Meeting link generated and emails sent to student.",
+      });
+      setShortlistModalOpen(false);
+      setPendingShortlistApp(null);
+      queryClient.invalidateQueries({ queryKey: ["alumni-applications", user?.id, jobIdFilter] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-interviews", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error scheduling interview",
+        description: error.message || "Failed to schedule interview. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -434,11 +601,10 @@ export default function AlumniApplications() {
                             size="sm"
                             variant="outline"
                             className="border-green-500 text-green-500 hover:bg-green-500/10"
-                            onClick={() => updateStatusMutation.mutate({ 
-                              appId: app.id, 
-                              status: "shortlisted",
-                              studentId: app.student_id || app.user_id 
-                            })}
+                            onClick={() => {
+                              setPendingShortlistApp(app);
+                              setShortlistModalOpen(true);
+                            }}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Shortlist
@@ -590,6 +756,34 @@ export default function AlumniApplications() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Shortlist Interview Modal */}
+        <ShortlistInterviewModal
+          open={shortlistModalOpen}
+          onOpenChange={setShortlistModalOpen}
+          application={pendingShortlistApp}
+          onProceed={() => {
+            if (pendingShortlistApp) {
+              const hasProposedSchedule = pendingShortlistApp.interview?.interview_date && pendingShortlistApp.interview?.interview_time;
+              scheduleInterviewMutation.mutate({
+                application: pendingShortlistApp,
+                useProposedSchedule: hasProposedSchedule || false,
+              });
+            }
+          }}
+          onRequestReschedule={() => {
+            if (pendingShortlistApp) {
+              // Update application status to trigger reschedule flow
+              updateStatusMutation.mutate({
+                appId: pendingShortlistApp.id,
+                status: "rescheduling_pending",
+                studentId: pendingShortlistApp.student_id || pendingShortlistApp.user_id,
+              });
+              setShortlistModalOpen(false);
+              setPendingShortlistApp(null);
+            }
+          }}
+        />
 
         {/* Reject Application Dialog */}
         <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
