@@ -552,48 +552,107 @@ export default function AlumniInterviews() {
                         </div>
                       )}
                       {interview.status === "pending" && interview.reschedule_status !== "pending" && (
-                        <>
-                          <Select
-                            value={interview.status}
-                            onValueChange={(value) =>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
                               updateStatusMutation.mutate({
                                 interviewId: interview.id,
-                                status: value,
+                                status: "completed",
                               })
                             }
+                            disabled={updateStatusMutation.isPending}
                           >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="completed">Mark as Completed</SelectItem>
-                              <SelectItem value="selected">Select Candidate</SelectItem>
-                              <SelectItem value="rejected">Reject</SelectItem>
-                              <SelectItem value="cancelled">Cancel</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </>
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Mark as Completed
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                            onClick={() =>
+                              updateStatusMutation.mutate({
+                                interviewId: interview.id,
+                                status: "selected",
+                              })
+                            }
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Select Candidate
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-500 hover:bg-red-500/10"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to reject this interview?")) {
+                                updateStatusMutation.mutate({
+                                  interviewId: interview.id,
+                                  status: "rejected",
+                                });
+                              }
+                            }}
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-500 text-gray-500 hover:bg-gray-500/10"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to cancel this interview?")) {
+                                updateStatusMutation.mutate({
+                                  interviewId: interview.id,
+                                  status: "cancelled",
+                                });
+                              }
+                            }}
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
                       )}
                       {interview.status === "completed" && interview.reschedule_status !== "pending" && (
-                        <>
-                          <Select
-                            value={interview.status}
-                            onValueChange={(value) =>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                            onClick={() =>
                               updateStatusMutation.mutate({
                                 interviewId: interview.id,
-                                status: value,
+                                status: "selected",
                               })
                             }
+                            disabled={updateStatusMutation.isPending}
                           >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="selected">Select Candidate</SelectItem>
-                              <SelectItem value="rejected">Reject</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </>
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Select Candidate
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-500 hover:bg-red-500/10"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to reject this candidate?")) {
+                                updateStatusMutation.mutate({
+                                  interviewId: interview.id,
+                                  status: "rejected",
+                                });
+                              }
+                            }}
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
                       )}
                       {(interview.status === "selected" ||
                         interview.status === "rejected" ||
