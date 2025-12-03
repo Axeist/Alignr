@@ -17,7 +17,10 @@ import {
   Video,
   Phone,
   MapPin,
-  Pencil
+  Pencil,
+  Info,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useState } from "react";
@@ -139,10 +142,27 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                   )}
                   {app.status === "rejected" && app.rejection_reason && (
                     <div className="mt-3 pt-2 border-t border-gray-200">
-                      <div className="text-xs">
-                        <div className="text-red-500 font-semibold mb-1">Rejection Reason:</div>
-                        <div className="text-gray-400">{app.rejection_reason}</div>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-red-500 text-red-500 hover:bg-red-500/10 text-xs px-2 py-1.5 h-auto min-h-[32px] flex items-center justify-center gap-1.5"
+                        onClick={() => setShowRejectionReason(prev => ({ ...prev, [app.id]: !prev[app.id] }))}
+                      >
+                        <Info className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs leading-tight">Reason for Rejection</span>
+                        {showRejectionReason[app.id] ? (
+                          <ChevronUp className="h-3 w-3 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                        )}
+                      </Button>
+                      {showRejectionReason[app.id] && (
+                        <div className="mt-2 text-xs">
+                          <div className="text-gray-400 bg-red-500/10 border border-red-500/30 rounded p-2">
+                            {app.rejection_reason}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -173,6 +193,7 @@ export default function Applications() {
   const [interviewMode, setInterviewMode] = useState<string>("");
   const [meetingLink, setMeetingLink] = useState("");
   const [location, setLocation] = useState("");
+  const [showRejectionReason, setShowRejectionReason] = useState<Record<string, boolean>>({});
 
   const navItems = [
     { label: "Dashboard", href: "/student/dashboard" },
@@ -669,16 +690,28 @@ export default function Applications() {
                       </span>
                     </div>
                     {app.status === "rejected" && app.rejection_reason && (
-                      <div className="mt-3 pt-3 border-t border-gray-700">
-                        <div className="text-sm">
-                          <div className="text-red-400 font-semibold mb-1 flex items-center gap-1">
-                            <XCircle className="h-3 w-3" />
-                            Rejection Reason:
+                      <div className="mt-3 pt-3 border-t border-gray-700 w-full">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-red-500 text-red-500 hover:bg-red-500/10 text-xs px-2 py-1.5 h-auto min-h-[32px] flex items-center justify-center gap-1.5"
+                          onClick={() => setShowRejectionReason(prev => ({ ...prev, [app.id]: !prev[app.id] }))}
+                        >
+                          <Info className="h-3 w-3 flex-shrink-0" />
+                          <span className="text-xs leading-tight">Reason for Rejection</span>
+                          {showRejectionReason[app.id] ? (
+                            <ChevronUp className="h-3 w-3 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                          )}
+                        </Button>
+                        {showRejectionReason[app.id] && (
+                          <div className="mt-2 text-sm">
+                            <div className="text-gray-400 text-xs bg-red-500/10 border border-red-500/30 rounded p-2">
+                              {app.rejection_reason}
+                            </div>
                           </div>
-                          <div className="text-gray-400 text-xs bg-red-500/10 border border-red-500/30 rounded p-2">
-                            {app.rejection_reason}
-                          </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
