@@ -617,82 +617,84 @@ export default function Applications() {
                 {applications.slice(0, 5).map((app: any) => (
                   <div
                     key={app.id}
-                    className="flex items-center justify-between p-3 rounded-lg glass"
+                    className="p-3 rounded-lg glass"
                   >
-                    <div className="flex items-center gap-3">
-                      <Briefcase className="h-5 w-5 text-primary" />
-                      <div>
-                        <div className="font-semibold">{app.jobs?.title || "Job"}</div>
-                        <div className="text-sm text-gray-400">{app.jobs?.company_name || ""}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="h-5 w-5 text-primary" />
+                        <div>
+                          <div className="font-semibold">{app.jobs?.title || "Job"}</div>
+                          <div className="text-sm text-gray-400">{app.jobs?.company_name || ""}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {app.match_score && (
+                          <Badge variant="outline">{app.match_score}% match</Badge>
+                        )}
+                        <Badge
+                          variant="outline"
+                          className={
+                            app.status === "accepted"
+                              ? "border-emerald-500 text-emerald-500 bg-emerald-500/10"
+                              : app.status === "shortlisted"
+                              ? "border-green-500 text-green-500 bg-green-500/10"
+                              : app.status === "rejected"
+                              ? "border-red-500 text-red-500 bg-red-500/10"
+                              : app.status === "pending"
+                              ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
+                              : app.status === "rescheduling_pending"
+                              ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
+                              : app.status === "interview_scheduled" || app.status === "interview"
+                              ? "border-purple-500 text-purple-500 bg-purple-500/10"
+                              : ""
+                          }
+                        >
+                          {app.status === "accepted" 
+                            ? "✓ Accepted" 
+                            : app.status === "rejected"
+                            ? "✗ Rejected"
+                            : app.status === "pending"
+                            ? "Pending Review"
+                            : app.status === "rescheduling_pending"
+                            ? "Rescheduling Pending"
+                            : app.status === "interview_scheduled" || app.status === "interview"
+                            ? "Interview Scheduled"
+                            : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                        </Badge>
+                        {app.status === "shortlisted" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                            onClick={() => handleScheduleInterview(app)}
+                          >
+                            <Calendar className="h-3 w-3 mr-2" />
+                            Schedule Interview
+                          </Button>
+                        )}
+                        {(app.status === "interview_scheduled" || app.status === "interview") && app.interview?.reschedule_status !== "pending" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-primary text-primary hover:bg-primary/10"
+                            onClick={() => handleRescheduleInterview(app)}
+                          >
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Reschedule Interview
+                          </Button>
+                        )}
+                        {app.status === "rescheduling_pending" && (
+                          <Badge variant="outline" className="border-yellow-500 text-yellow-500 bg-yellow-500/10">
+                            Rescheduling Pending – Await alumni confirmation
+                          </Badge>
+                        )}
+                        <span className="text-xs text-gray-400">
+                          {new Date(app.applied_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      {app.match_score && (
-                        <Badge variant="outline">{app.match_score}% match</Badge>
-                      )}
-                      <Badge
-                        variant="outline"
-                        className={
-                          app.status === "accepted"
-                            ? "border-emerald-500 text-emerald-500 bg-emerald-500/10"
-                            : app.status === "shortlisted"
-                            ? "border-green-500 text-green-500 bg-green-500/10"
-                            : app.status === "rejected"
-                            ? "border-red-500 text-red-500 bg-red-500/10"
-                            : app.status === "pending"
-                            ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
-                            : app.status === "rescheduling_pending"
-                            ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
-                            : app.status === "interview_scheduled" || app.status === "interview"
-                            ? "border-purple-500 text-purple-500 bg-purple-500/10"
-                            : ""
-                        }
-                      >
-                        {app.status === "accepted" 
-                          ? "✓ Accepted" 
-                          : app.status === "rejected"
-                          ? "✗ Rejected"
-                          : app.status === "pending"
-                          ? "Pending Review"
-                          : app.status === "rescheduling_pending"
-                          ? "Rescheduling Pending"
-                          : app.status === "interview_scheduled" || app.status === "interview"
-                          ? "Interview Scheduled"
-                          : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-                      </Badge>
-                      {app.status === "shortlisted" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-primary text-primary hover:bg-primary/10"
-                          onClick={() => handleScheduleInterview(app)}
-                        >
-                          <Calendar className="h-3 w-3 mr-2" />
-                          Schedule Interview
-                        </Button>
-                      )}
-                      {(app.status === "interview_scheduled" || app.status === "interview") && app.interview?.reschedule_status !== "pending" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-primary text-primary hover:bg-primary/10"
-                          onClick={() => handleRescheduleInterview(app)}
-                        >
-                          <Pencil className="h-3 w-3 mr-2" />
-                          Reschedule Interview
-                        </Button>
-                      )}
-                      {app.status === "rescheduling_pending" && (
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-500 bg-yellow-500/10">
-                          Rescheduling Pending – Await alumni confirmation
-                        </Badge>
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {new Date(app.applied_at).toLocaleDateString()}
-                      </span>
-                    </div>
                     {app.status === "rejected" && app.rejection_reason && (
-                      <div className="mt-3 pt-3 border-t border-gray-700 w-full">
+                      <div className="mt-3 pt-3 border-t border-gray-700">
                         <Button
                           size="sm"
                           variant="outline"
@@ -708,7 +710,7 @@ export default function Applications() {
                           )}
                         </Button>
                         {showRejectionReason && showRejectionReason[app.id] && (
-                          <div className="mt-2 text-sm">
+                          <div className="mt-2">
                             <div className="text-gray-400 text-xs bg-red-500/10 border border-red-500/30 rounded p-2">
                               {app.rejection_reason}
                             </div>
