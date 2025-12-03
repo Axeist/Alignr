@@ -16,7 +16,6 @@ interface ShortlistInterviewModalProps {
   onOpenChange: (open: boolean) => void;
   application: any;
   onProceed: (meetingLink: string) => void;
-  onRequestReschedule: () => void;
 }
 
 export function ShortlistInterviewModal({
@@ -24,7 +23,6 @@ export function ShortlistInterviewModal({
   onOpenChange,
   application,
   onProceed,
-  onRequestReschedule,
 }: ShortlistInterviewModalProps) {
   const [meetingLink, setMeetingLink] = useState("");
   
@@ -158,24 +156,12 @@ export function ShortlistInterviewModal({
                 ? "Proceed with Student's Proposed Date & Time"
                 : "Proceed with Interview Scheduling"}
             </Button>
-            
-            <Button
-              onClick={onRequestReschedule}
-              variant="outline"
-              className="w-full border-orange-500 text-orange-500 hover:bg-orange-500/10"
-              size="lg"
-            >
-              Request for Reschedule
-            </Button>
           </div>
 
           <div className="text-xs text-gray-400 pt-4 border-t border-gray-700">
             <p>
               <strong>Proceed:</strong> The interview will be scheduled with the provided meeting link, 
               and both you and the student will receive email notifications with interview details.
-            </p>
-            <p className="mt-2">
-              <strong>Request Reschedule:</strong> The student will be notified to propose a new date and time.
             </p>
           </div>
         </div>

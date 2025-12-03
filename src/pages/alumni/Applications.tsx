@@ -771,18 +771,6 @@ export default function AlumniApplications() {
               });
             }
           }}
-          onRequestReschedule={() => {
-            if (pendingShortlistApp) {
-              // Update application status to trigger reschedule flow
-              updateStatusMutation.mutate({
-                appId: pendingShortlistApp.id,
-                status: "rescheduling_pending",
-                studentId: pendingShortlistApp.student_id || pendingShortlistApp.user_id,
-              });
-              setShortlistModalOpen(false);
-              setPendingShortlistApp(null);
-            }
-          }}
         />
 
         {/* Reject Application Dialog */}
