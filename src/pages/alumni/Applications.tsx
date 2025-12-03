@@ -24,7 +24,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShortlistInterviewModal } from "@/components/ShortlistInterviewModal";
-import { generateRoomId, generateMeetingLink } from "@/lib/meeting";
 import { generateInterviewScheduledEmail } from "@/lib/email-templates";
 
 export default function AlumniApplications() {
@@ -164,8 +163,9 @@ export default function AlumniApplications() {
 
   // Schedule interview mutation (when Proceed is clicked)
   const scheduleInterviewMutation = useMutation({
-    mutationFn: async ({ application, useProposedSchedule }: { application: any; useProposedSchedule: boolean }) => {
+    mutationFn: async ({ application, useProposedSchedule, meetingLink }: { application: any; useProposedSchedule: boolean; meetingLink: string }) => {
       if (!user || !application) throw new Error("Missing user or application");
+      if (!meetingLink || !meetingLink.trim()) throw new Error("Meeting link is required");
       
       // Get student and alumni profiles for email
       const studentId = application.student_id || application.user_id;
@@ -197,9 +197,8 @@ export default function AlumniApplications() {
         interviewTime = "10:00:00";
       }
       
-      // Generate unique meeting link
-      const roomId = generateRoomId(10);
-      const meetingLink = generateMeetingLink(roomId);
+      // Use the provided meeting link (from alumni input)
+      const finalMeetingLink = meetingLink.trim();
       
       // Create or update interview record
       let interviewId: string;
@@ -211,7 +210,7 @@ export default function AlumniApplications() {
             interview_date: interviewDate,
             interview_time: interviewTime,
             mode: interviewMode,
-            meeting_link: meetingLink,
+            meeting_link: finalMeetingLink,
             location: location,
             status: "pending",
           })
@@ -233,7 +232,7 @@ export default function AlumniApplications() {
             interview_date: interviewDate,
             interview_time: interviewTime,
             mode: interviewMode,
-            meeting_link: meetingLink,
+            meeting_link: finalMeetingLink,
             location: location,
             status: "pending",
           })
@@ -762,12 +761,13 @@ export default function AlumniApplications() {
           open={shortlistModalOpen}
           onOpenChange={setShortlistModalOpen}
           application={pendingShortlistApp}
-          onProceed={() => {
+          onProceed={(meetingLink) => {
             if (pendingShortlistApp) {
               const hasProposedSchedule = pendingShortlistApp.interview?.interview_date && pendingShortlistApp.interview?.interview_time;
               scheduleInterviewMutation.mutate({
                 application: pendingShortlistApp,
                 useProposedSchedule: hasProposedSchedule || false,
+                meetingLink: meetingLink,
               });
             }
           }}
