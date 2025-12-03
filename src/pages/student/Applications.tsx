@@ -37,7 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 // Install @hello-pangea/dnd if not available - using a simple implementation for now
-const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview, onRescheduleInterview }: any) => {
+const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview, onRescheduleInterview, showRejectionReason, setShowRejectionReason }: any) => {
   return (
     <Card className="glass-hover flex-1 min-w-[280px]">
       <CardHeader>
@@ -598,6 +598,8 @@ export default function Applications() {
                   icon={column.icon}
                   onScheduleInterview={handleScheduleInterview}
                   onRescheduleInterview={handleRescheduleInterview}
+                  showRejectionReason={showRejectionReason}
+                  setShowRejectionReason={setShowRejectionReason}
                 />
               );
             })}
