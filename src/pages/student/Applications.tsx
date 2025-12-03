@@ -83,6 +83,8 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                           ? "border-red-500 text-red-500 bg-red-500/10"
                           : app.status === "shortlisted"
                           ? "border-green-500 text-green-500 bg-green-500/10"
+                          : app.status === "rescheduling_pending"
+                          ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
                           : app.status === "interview_scheduled" || app.status === "interview"
                           ? "border-purple-500 text-purple-500 bg-purple-500/10"
                           : ""
@@ -94,6 +96,8 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                         ? "✗ Rejected"
                         : app.status === "shortlisted"
                         ? "Shortlisted"
+                        : app.status === "rescheduling_pending"
+                        ? "Rescheduling Pending"
                         : app.status === "interview_scheduled" || app.status === "interview"
                         ? "Interview Scheduled"
                         : ""}
@@ -112,7 +116,7 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                       </Button>
                     </div>
                   )}
-                  {(app.status === "interview_scheduled" || app.status === "interview") && onRescheduleInterview && (
+                  {(app.status === "interview_scheduled" || app.status === "interview") && onRescheduleInterview && app.interview?.reschedule_status !== "pending" && (
                     <div className="mt-3 pt-2 border-t border-gray-200">
                       <Button
                         size="sm"
@@ -123,6 +127,14 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                         <Pencil className="h-3 w-3 flex-shrink-0" />
                         <span className="text-xs leading-tight">Reschedule Interview</span>
                       </Button>
+                    </div>
+                  )}
+                  {app.status === "rescheduling_pending" && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <div className="text-xs text-yellow-500 flex items-center justify-center gap-1.5">
+                        <Clock className="h-3 w-3 flex-shrink-0" />
+                        <span>Rescheduling Pending – Await alumni confirmation</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -274,18 +286,19 @@ export default function Applications() {
     },
   });
 
-  // Reschedule interview mutation
+  // Reschedule interview mutation - creates a reschedule request
   const rescheduleInterviewMutation = useMutation({
     mutationFn: async () => {
       if (!selectedInterview || !selectedApplication) throw new Error("Missing interview or application");
       
-      // Update interview record
+      // Create reschedule request by updating the interview record with requested fields
       const updateData: any = {
-        interview_date: interviewDate,
-        interview_time: interviewTime,
-        mode: interviewMode,
-        meeting_link: interviewMode === "online" || interviewMode === "video_call" ? meetingLink : null,
-        location: interviewMode === "offline" ? location : null,
+        requested_date: interviewDate,
+        requested_time: interviewTime,
+        requested_mode: interviewMode,
+        requested_location: interviewMode === "offline" ? location : null,
+        requested_meeting_link: null, // Students cannot provide meeting link
+        reschedule_status: "pending",
       };
       
       const { error: interviewError } = await supabase
@@ -294,19 +307,27 @@ export default function Applications() {
         .eq("id", selectedInterview.id);
       
       if (interviewError) throw interviewError;
+      
+      // Update application status to rescheduling_pending
+      const { error: statusError } = await supabase
+        .from("applications")
+        .update({ status: "rescheduling_pending" })
+        .eq("id", selectedApplication.id);
+      
+      if (statusError) throw statusError;
     },
     onSuccess: () => {
       toast({
-        title: "Interview rescheduled",
-        description: "Your interview has been rescheduled successfully.",
+        title: "Reschedule request submitted",
+        description: "Your reschedule request has been sent to the alumni. Please wait for confirmation.",
       });
       resetDialog();
       queryClient.invalidateQueries({ queryKey: ["applications", user?.id] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error rescheduling interview",
-        description: error.message || "Failed to reschedule interview. Please try again.",
+        title: "Error submitting reschedule request",
+        description: error.message || "Failed to submit reschedule request. Please try again.",
         variant: "destructive",
       });
     },
@@ -332,6 +353,16 @@ export default function Applications() {
   };
 
   const handleRescheduleInterview = (app: any) => {
+    // Don't allow reschedule if there's already a pending reschedule request
+    if (app.interview?.reschedule_status === "pending") {
+      toast({
+        title: "Reschedule request pending",
+        description: "You already have a pending reschedule request. Please wait for alumni confirmation.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setSelectedApplication(app);
     setSelectedInterview(app.interview || null);
     setIsEditing(true);
@@ -344,7 +375,8 @@ export default function Applications() {
       const timeValue = interview.interview_time ? interview.interview_time.slice(0, 5) : "";
       setInterviewTime(timeValue);
       setInterviewMode(interview.mode || "");
-      setMeetingLink(interview.meeting_link || "");
+      // Don't pre-populate meeting link - students can't edit it during reschedule
+      setMeetingLink("");
       setLocation(interview.location || "");
     }
     
@@ -361,7 +393,9 @@ export default function Applications() {
       return;
     }
     
-    if ((interviewMode === "online" || interviewMode === "video_call") && !meetingLink) {
+    // For reschedule requests, don't require meeting link (alumni will provide it after acceptance)
+    // For initial scheduling, still require meeting link for online interviews
+    if (!isEditing && (interviewMode === "online" || interviewMode === "video_call") && !meetingLink) {
       toast({
         title: "Missing meeting link",
         description: "Please provide a meeting link for online interviews.",
@@ -576,6 +610,8 @@ export default function Applications() {
                             ? "border-red-500 text-red-500 bg-red-500/10"
                             : app.status === "pending"
                             ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
+                            : app.status === "rescheduling_pending"
+                            ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
                             : app.status === "interview_scheduled" || app.status === "interview"
                             ? "border-purple-500 text-purple-500 bg-purple-500/10"
                             : ""
@@ -587,6 +623,8 @@ export default function Applications() {
                           ? "✗ Rejected"
                           : app.status === "pending"
                           ? "Pending Review"
+                          : app.status === "rescheduling_pending"
+                          ? "Rescheduling Pending"
                           : app.status === "interview_scheduled" || app.status === "interview"
                           ? "Interview Scheduled"
                           : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
@@ -602,7 +640,7 @@ export default function Applications() {
                           Schedule Interview
                         </Button>
                       )}
-                      {(app.status === "interview_scheduled" || app.status === "interview") && (
+                      {(app.status === "interview_scheduled" || app.status === "interview") && app.interview?.reschedule_status !== "pending" && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -612,6 +650,11 @@ export default function Applications() {
                           <Pencil className="h-3 w-3 mr-2" />
                           Reschedule Interview
                         </Button>
+                      )}
+                      {app.status === "rescheduling_pending" && (
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-500 bg-yellow-500/10">
+                          Rescheduling Pending – Await alumni confirmation
+                        </Badge>
                       )}
                       <span className="text-xs text-gray-400">
                         {new Date(app.applied_at).toLocaleDateString()}
@@ -689,7 +732,8 @@ export default function Applications() {
                   </SelectContent>
                 </Select>
               </div>
-              {(interviewMode === "online" || interviewMode === "video_call") && (
+              {/* Only show meeting link field for initial scheduling, not for reschedule requests */}
+              {!isEditing && (interviewMode === "online" || interviewMode === "video_call") && (
                 <div className="space-y-2">
                   <Label htmlFor="meeting_link">Meeting Link *</Label>
                   <Input
@@ -699,6 +743,13 @@ export default function Applications() {
                     onChange={(e) => setMeetingLink(e.target.value)}
                     placeholder="https://meet.google.com/..."
                   />
+                </div>
+              )}
+              {isEditing && (interviewMode === "online" || interviewMode === "video_call") && (
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-400 italic">
+                    Meeting link will be provided by alumni after accepting the reschedule request.
+                  </div>
                 </div>
               )}
               {interviewMode === "offline" && (

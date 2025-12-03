@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Search, User, Calendar, Clock, Video, Phone, MapPin, CheckCircle2, XCircle, AlertCircle, Eye } from "lucide-react";
+import { Search, User, Calendar, Clock, Video, Phone, MapPin, CheckCircle2, XCircle, AlertCircle, Eye, Check, X } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 
 export default function AlumniInterviews() {
   const { user } = useAuth();
@@ -28,6 +29,8 @@ export default function AlumniInterviews() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedInterview, setSelectedInterview] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [rescheduleMeetingLink, setRescheduleMeetingLink] = useState("");
 
   const navItems = [
     { label: "Dashboard", href: "/alumni/dashboard" },
@@ -129,6 +132,115 @@ export default function AlumniInterviews() {
       toast({
         title: "Error updating status",
         description: error.message || "Failed to update interview status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Accept reschedule mutation
+  const acceptRescheduleMutation = useMutation({
+    mutationFn: async ({ interviewId, meetingLink }: { interviewId: string; meetingLink?: string }) => {
+      const interview = interviews?.find((i: any) => i.id === interviewId);
+      if (!interview) throw new Error("Interview not found");
+
+      // Update interview with requested details
+      const updateData: any = {
+        interview_date: interview.requested_date,
+        interview_time: interview.requested_time,
+        mode: interview.requested_mode,
+        location: interview.requested_location || null,
+        meeting_link: (interview.requested_mode === "online" || interview.requested_mode === "video_call") 
+          ? (meetingLink || interview.meeting_link || null)
+          : null,
+        reschedule_status: "accepted",
+        requested_date: null,
+        requested_time: null,
+        requested_mode: null,
+        requested_location: null,
+        requested_meeting_link: null,
+      };
+
+      const { error: interviewError } = await supabase
+        .from("interviews")
+        .update(updateData)
+        .eq("id", interviewId);
+
+      if (interviewError) throw interviewError;
+
+      // Update application status back to interview_scheduled
+      if (interview.application_id) {
+        const { error: appError } = await supabase
+          .from("applications")
+          .update({ status: "interview_scheduled" })
+          .eq("id", interview.application_id);
+
+        if (appError) throw appError;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reschedule accepted",
+        description: "The interview has been rescheduled successfully.",
+      });
+      setAcceptDialogOpen(false);
+      setRescheduleMeetingLink("");
+      queryClient.invalidateQueries({ queryKey: ["alumni-interviews", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-applications", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error accepting reschedule",
+        description: error.message || "Failed to accept reschedule request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject reschedule mutation
+  const rejectRescheduleMutation = useMutation({
+    mutationFn: async ({ interviewId }: { interviewId: string }) => {
+      const interview = interviews?.find((i: any) => i.id === interviewId);
+      if (!interview) throw new Error("Interview not found");
+
+      // Clear all reschedule request fields and reset status
+      const updateData: any = {
+        reschedule_status: null,
+        requested_date: null,
+        requested_time: null,
+        requested_mode: null,
+        requested_location: null,
+        requested_meeting_link: null,
+      };
+
+      const { error: interviewError } = await supabase
+        .from("interviews")
+        .update(updateData)
+        .eq("id", interviewId);
+
+      if (interviewError) throw interviewError;
+
+      // Update application status back to interview_scheduled
+      if (interview.application_id) {
+        const { error: appError } = await supabase
+          .from("applications")
+          .update({ status: "interview_scheduled" })
+          .eq("id", interview.application_id);
+
+        if (appError) throw appError;
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reschedule rejected",
+        description: "The reschedule request has been rejected. Original interview schedule retained.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["alumni-interviews", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["alumni-applications", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error rejecting reschedule",
+        description: error.message || "Failed to reject reschedule request.",
         variant: "destructive",
       });
     },
@@ -339,33 +451,60 @@ export default function AlumniInterviews() {
                               {interview.mode.charAt(0).toUpperCase() + interview.mode.slice(1)}
                             </div>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-300">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(interview.interview_date)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {formatTime(interview.interview_time)}
-                            </div>
-                            {interview.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {interview.location}
+                          {interview.reschedule_status === "pending" ? (
+                            <div className="space-y-2">
+                              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                  <span className="text-sm font-semibold text-yellow-500">Reschedule Request Pending</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <div className="text-gray-400 mb-1">Current Date & Time:</div>
+                                    <div className="flex items-center gap-1 text-gray-300">
+                                      <Calendar className="h-3 w-3" />
+                                      {formatDate(interview.interview_date)} at {formatTime(interview.interview_time)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-gray-400 mb-1">Requested Date & Time:</div>
+                                    <div className="flex items-center gap-1 text-yellow-400 font-semibold">
+                                      <Calendar className="h-3 w-3" />
+                                      {interview.requested_date ? formatDate(interview.requested_date) : "N/A"} at {interview.requested_time ? formatTime(interview.requested_time) : "N/A"}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            )}
-                            {interview.meeting_link && (
-                              <a
-                                href={interview.meeting_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-primary hover:underline"
-                              >
-                                <Video className="h-4 w-4" />
-                                Join Meeting
-                              </a>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-4 text-sm text-gray-300">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                {formatDate(interview.interview_date)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {formatTime(interview.interview_time)}
+                              </div>
+                              {interview.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-4 w-4" />
+                                  {interview.location}
+                                </div>
+                              )}
+                              {interview.meeting_link && (
+                                <a
+                                  href={interview.meeting_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-primary hover:underline"
+                                >
+                                  <Video className="h-4 w-4" />
+                                  Join Meeting
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -384,7 +523,35 @@ export default function AlumniInterviews() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {interview.status === "pending" && (
+                      {interview.reschedule_status === "pending" && (
+                        <div className="flex items-center gap-2 w-full">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedInterview(interview);
+                              setAcceptDialogOpen(true);
+                            }}
+                            className="bg-green-500 hover:bg-green-600"
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Accept Reschedule
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to reject this reschedule request? The original interview schedule will be retained.")) {
+                                rejectRescheduleMutation.mutate({ interviewId: interview.id });
+                              }
+                            }}
+                            disabled={rejectRescheduleMutation.isPending}
+                          >
+                            <X className="h-4 w-4 mr-2" />
+                            Reject Reschedule
+                          </Button>
+                        </div>
+                      )}
+                      {interview.status === "pending" && interview.reschedule_status !== "pending" && (
                         <>
                           <Select
                             value={interview.status}
@@ -407,7 +574,7 @@ export default function AlumniInterviews() {
                           </Select>
                         </>
                       )}
-                      {interview.status === "completed" && (
+                      {interview.status === "completed" && interview.reschedule_status !== "pending" && (
                         <>
                           <Select
                             value={interview.status}
@@ -430,7 +597,7 @@ export default function AlumniInterviews() {
                       )}
                       {(interview.status === "selected" ||
                         interview.status === "rejected" ||
-                        interview.status === "cancelled") && (
+                        interview.status === "cancelled") && interview.reschedule_status !== "pending" && (
                         <p className="text-sm text-gray-400 italic">
                           {interview.status === "selected"
                             ? "Candidate has been selected"
@@ -460,6 +627,36 @@ export default function AlumniInterviews() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
+                  {selectedInterview.reschedule_status === "pending" && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                        <h4 className="font-semibold text-yellow-500">Reschedule Request Pending</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-gray-400 mb-1">Current Date:</div>
+                          <div className="text-gray-300">{formatDate(selectedInterview.interview_date)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 mb-1">Current Time:</div>
+                          <div className="text-gray-300">{formatTime(selectedInterview.interview_time)}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 mb-1">Requested Date:</div>
+                          <div className="text-yellow-400 font-semibold">
+                            {selectedInterview.requested_date ? formatDate(selectedInterview.requested_date) : "N/A"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 mb-1">Requested Time:</div>
+                          <div className="text-yellow-400 font-semibold">
+                            {selectedInterview.requested_time ? formatTime(selectedInterview.requested_time) : "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <h4 className="font-semibold mb-2">Date</h4>
@@ -515,6 +712,100 @@ export default function AlumniInterviews() {
                       </p>
                     </div>
                   )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Accept Reschedule Dialog */}
+        <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            {selectedInterview && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Accept Reschedule Request</DialogTitle>
+                  <DialogDescription>
+                    Accept the reschedule request from {selectedInterview.profiles?.full_name} for{" "}
+                    {selectedInterview.applications?.jobs?.title}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-2">
+                    <h4 className="font-semibold text-sm mb-3">Reschedule Details</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <div className="text-gray-400 mb-1">New Date:</div>
+                        <div className="text-gray-300 font-semibold">
+                          {selectedInterview.requested_date ? formatDate(selectedInterview.requested_date) : "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 mb-1">New Time:</div>
+                        <div className="text-gray-300 font-semibold">
+                          {selectedInterview.requested_time ? formatTime(selectedInterview.requested_time) : "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 mb-1">Mode:</div>
+                        <div className="text-gray-300">
+                          {selectedInterview.requested_mode ? selectedInterview.requested_mode.charAt(0).toUpperCase() + selectedInterview.requested_mode.slice(1) : "N/A"}
+                        </div>
+                      </div>
+                      {selectedInterview.requested_location && (
+                        <div>
+                          <div className="text-gray-400 mb-1">Location:</div>
+                          <div className="text-gray-300">{selectedInterview.requested_location}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {(selectedInterview.requested_mode === "online" || selectedInterview.requested_mode === "video_call") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reschedule_meeting_link">Meeting Link *</Label>
+                      <Input
+                        id="reschedule_meeting_link"
+                        type="url"
+                        value={rescheduleMeetingLink}
+                        onChange={(e) => setRescheduleMeetingLink(e.target.value)}
+                        placeholder="https://meet.google.com/..."
+                      />
+                      <p className="text-xs text-gray-400">
+                        Provide the meeting link for the rescheduled interview.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 justify-end pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAcceptDialogOpen(false);
+                        setRescheduleMeetingLink("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if ((selectedInterview.requested_mode === "online" || selectedInterview.requested_mode === "video_call") && !rescheduleMeetingLink) {
+                          toast({
+                            title: "Meeting link required",
+                            description: "Please provide a meeting link for online/video call interviews.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        acceptRescheduleMutation.mutate({
+                          interviewId: selectedInterview.id,
+                          meetingLink: rescheduleMeetingLink || undefined,
+                        });
+                      }}
+                      disabled={acceptRescheduleMutation.isPending}
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      {acceptRescheduleMutation.isPending ? "Accepting..." : "Accept Reschedule"}
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
