@@ -21,6 +21,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function AlumniApplications() {
   const { user } = useAuth();
@@ -32,6 +34,8 @@ export default function AlumniApplications() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const navItems = [
     { label: "Dashboard", href: "/alumni/dashboard" },
@@ -139,10 +143,18 @@ export default function AlumniApplications() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ appId, status, studentId }: { appId: string; status: string; studentId?: string }) => {
+    mutationFn: async ({ appId, status, studentId, rejectionReason }: { appId: string; status: string; studentId?: string; rejectionReason?: string }) => {
+      const updateData: any = { status };
+      if (status === "rejected" && rejectionReason) {
+        updateData.rejection_reason = rejectionReason;
+      } else if (status !== "rejected") {
+        // Clear rejection reason if status is changed away from rejected
+        updateData.rejection_reason = null;
+      }
+      
       const { data, error } = await supabase
         .from("applications")
-        .update({ status })
+        .update(updateData)
         .eq("id", appId)
         .select();
       
@@ -153,7 +165,7 @@ export default function AlumniApplications() {
         throw new Error("Failed to update application. No rows were updated. You may not have permission to update this application.");
       }
       
-      return { appId, status, studentId };
+      return { appId, status, studentId, rejectionReason };
     },
     onMutate: async ({ appId, status }) => {
       // Cancel any outgoing refetches
@@ -435,11 +447,11 @@ export default function AlumniApplications() {
                             size="sm"
                             variant="outline"
                             className="border-red-500 text-red-500 hover:bg-red-500/10"
-                            onClick={() => updateStatusMutation.mutate({ 
-                              appId: app.id, 
-                              status: "rejected",
-                              studentId: app.student_id || app.user_id 
-                            })}
+                            onClick={() => {
+                              setSelectedApplication(app);
+                              setRejectionReason("");
+                              setRejectDialogOpen(true);
+                            }}
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             Reject
@@ -576,6 +588,71 @@ export default function AlumniApplications() {
                 </div>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Application Dialog */}
+        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Reject Application</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting {selectedApplication?.profiles?.full_name || "this candidate"}'s application for {selectedApplication?.jobs?.title || "this position"}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="rejection_reason">Rejection Reason *</Label>
+                <Textarea
+                  id="rejection_reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide feedback on why this application was not selected..."
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-gray-400">
+                  This feedback will be shared with the candidate to help them improve.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRejectDialogOpen(false);
+                    setRejectionReason("");
+                    setSelectedApplication(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (!rejectionReason.trim()) {
+                      toast({
+                        title: "Rejection reason required",
+                        description: "Please provide a reason for rejecting this application.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    updateStatusMutation.mutate({
+                      appId: selectedApplication.id,
+                      status: "rejected",
+                      studentId: selectedApplication.student_id || selectedApplication.user_id,
+                      rejectionReason: rejectionReason.trim(),
+                    });
+                    setRejectDialogOpen(false);
+                    setRejectionReason("");
+                    setSelectedApplication(null);
+                  }}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  {updateStatusMutation.isPending ? "Rejecting..." : "Reject Application"}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

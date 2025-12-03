@@ -137,6 +137,14 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                       </div>
                     </div>
                   )}
+                  {app.status === "rejected" && app.rejection_reason && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <div className="text-xs">
+                        <div className="text-red-500 font-semibold mb-1">Rejection Reason:</div>
+                        <div className="text-gray-400">{app.rejection_reason}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -660,6 +668,19 @@ export default function Applications() {
                         {new Date(app.applied_at).toLocaleDateString()}
                       </span>
                     </div>
+                    {app.status === "rejected" && app.rejection_reason && (
+                      <div className="mt-3 pt-3 border-t border-gray-700">
+                        <div className="text-sm">
+                          <div className="text-red-400 font-semibold mb-1 flex items-center gap-1">
+                            <XCircle className="h-3 w-3" />
+                            Rejection Reason:
+                          </div>
+                          <div className="text-gray-400 text-xs bg-red-500/10 border border-red-500/30 rounded p-2">
+                            {app.rejection_reason}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
