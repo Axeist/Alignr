@@ -16,7 +16,8 @@ import {
   FileText,
   Video,
   Phone,
-  MapPin
+  MapPin,
+  Pencil
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useState } from "react";
@@ -33,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 // Install @hello-pangea/dnd if not available - using a simple implementation for now
-const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview }: any) => {
+const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterview, onRescheduleInterview }: any) => {
   return (
     <Card className="glass-hover flex-1 min-w-[280px]">
       <CardHeader>
@@ -82,6 +83,8 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                           ? "border-red-500 text-red-500 bg-red-500/10"
                           : app.status === "shortlisted"
                           ? "border-green-500 text-green-500 bg-green-500/10"
+                          : app.status === "interview_scheduled" || app.status === "interview"
+                          ? "border-purple-500 text-purple-500 bg-purple-500/10"
                           : ""
                       }`}
                     >
@@ -91,6 +94,8 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                         ? "✗ Rejected"
                         : app.status === "shortlisted"
                         ? "Shortlisted"
+                        : app.status === "interview_scheduled" || app.status === "interview"
+                        ? "Interview Scheduled"
                         : ""}
                     </Badge>
                   </div>
@@ -104,6 +109,19 @@ const KanbanColumn = ({ title, status, applications, onDragEnd, onScheduleInterv
                       >
                         <Calendar className="h-3 w-3 flex-shrink-0" />
                         <span className="text-xs leading-tight">Schedule Interview</span>
+                      </Button>
+                    </div>
+                  )}
+                  {(app.status === "interview_scheduled" || app.status === "interview") && onRescheduleInterview && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-primary text-primary hover:bg-primary/10 text-xs px-2 py-1.5 h-auto min-h-[32px] flex items-center justify-center gap-1.5"
+                        onClick={() => onRescheduleInterview(app)}
+                      >
+                        <Pencil className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs leading-tight">Reschedule Interview</span>
                       </Button>
                     </div>
                   )}
@@ -128,6 +146,8 @@ export default function Applications() {
   const { toast } = useToast();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [selectedInterview, setSelectedInterview] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [interviewDate, setInterviewDate] = useState("");
   const [interviewTime, setInterviewTime] = useState("");
   const [interviewMode, setInterviewMode] = useState<string>("");
@@ -159,6 +179,24 @@ export default function Applications() {
         .eq("user_id", user.id)
         .order("applied_at", { ascending: false });
       if (error) throw error;
+      
+      // Fetch interviews for applications with interview_scheduled status
+      const applicationIds = (data || []).map((app: any) => app.id);
+      if (applicationIds.length > 0) {
+        const { data: interviewsData, error: interviewsError } = await supabase
+          .from("interviews")
+          .select("*")
+          .in("application_id", applicationIds);
+        
+        if (!interviewsError && interviewsData) {
+          const interviewsMap = new Map(interviewsData.map((i: any) => [i.application_id, i]));
+          return (data || []).map((app: any) => ({
+            ...app,
+            interview: interviewsMap.get(app.id) || null
+          }));
+        }
+      }
+      
       return data || [];
     },
     enabled: !!user
@@ -224,13 +262,7 @@ export default function Applications() {
         title: "Interview scheduled",
         description: "Your interview has been scheduled successfully.",
       });
-      setScheduleDialogOpen(false);
-      setInterviewDate("");
-      setInterviewTime("");
-      setInterviewMode("");
-      setMeetingLink("");
-      setLocation("");
-      setSelectedApplication(null);
+      resetDialog();
       queryClient.invalidateQueries({ queryKey: ["applications", user?.id] });
     },
     onError: (error: any) => {
@@ -242,8 +274,80 @@ export default function Applications() {
     },
   });
 
+  // Reschedule interview mutation
+  const rescheduleInterviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedInterview || !selectedApplication) throw new Error("Missing interview or application");
+      
+      // Update interview record
+      const updateData: any = {
+        interview_date: interviewDate,
+        interview_time: interviewTime,
+        mode: interviewMode,
+        meeting_link: interviewMode === "online" || interviewMode === "video_call" ? meetingLink : null,
+        location: interviewMode === "offline" ? location : null,
+      };
+      
+      const { error: interviewError } = await supabase
+        .from("interviews")
+        .update(updateData)
+        .eq("id", selectedInterview.id);
+      
+      if (interviewError) throw interviewError;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Interview rescheduled",
+        description: "Your interview has been rescheduled successfully.",
+      });
+      resetDialog();
+      queryClient.invalidateQueries({ queryKey: ["applications", user?.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error rescheduling interview",
+        description: error.message || "Failed to reschedule interview. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetDialog = () => {
+    setScheduleDialogOpen(false);
+    setInterviewDate("");
+    setInterviewTime("");
+    setInterviewMode("");
+    setMeetingLink("");
+    setLocation("");
+    setSelectedApplication(null);
+    setSelectedInterview(null);
+    setIsEditing(false);
+  };
+
   const handleScheduleInterview = (app: any) => {
     setSelectedApplication(app);
+    setSelectedInterview(null);
+    setIsEditing(false);
+    setScheduleDialogOpen(true);
+  };
+
+  const handleRescheduleInterview = (app: any) => {
+    setSelectedApplication(app);
+    setSelectedInterview(app.interview || null);
+    setIsEditing(true);
+    
+    // Pre-populate form with existing interview data
+    if (app.interview) {
+      const interview = app.interview;
+      setInterviewDate(interview.interview_date || "");
+      // Format time to HH:MM format for HTML time input (remove seconds if present)
+      const timeValue = interview.interview_time ? interview.interview_time.slice(0, 5) : "";
+      setInterviewTime(timeValue);
+      setInterviewMode(interview.mode || "");
+      setMeetingLink(interview.meeting_link || "");
+      setLocation(interview.location || "");
+    }
+    
     setScheduleDialogOpen(true);
   };
 
@@ -275,7 +379,11 @@ export default function Applications() {
       return;
     }
     
-    scheduleInterviewMutation.mutate();
+    if (isEditing && selectedInterview) {
+      rescheduleInterviewMutation.mutate();
+    } else {
+      scheduleInterviewMutation.mutate();
+    }
   };
 
   const handleDragEnd = (result: any) => {
@@ -426,6 +534,7 @@ export default function Applications() {
                   applications={columnApps}
                   icon={column.icon}
                   onScheduleInterview={handleScheduleInterview}
+                  onRescheduleInterview={handleRescheduleInterview}
                 />
               );
             })}
@@ -467,6 +576,8 @@ export default function Applications() {
                             ? "border-red-500 text-red-500 bg-red-500/10"
                             : app.status === "pending"
                             ? "border-yellow-500 text-yellow-500 bg-yellow-500/10"
+                            : app.status === "interview_scheduled" || app.status === "interview"
+                            ? "border-purple-500 text-purple-500 bg-purple-500/10"
                             : ""
                         }
                       >
@@ -476,6 +587,8 @@ export default function Applications() {
                           ? "✗ Rejected"
                           : app.status === "pending"
                           ? "Pending Review"
+                          : app.status === "interview_scheduled" || app.status === "interview"
+                          ? "Interview Scheduled"
                           : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                       </Badge>
                       {app.status === "shortlisted" && (
@@ -487,6 +600,17 @@ export default function Applications() {
                         >
                           <Calendar className="h-3 w-3 mr-2" />
                           Schedule Interview
+                        </Button>
+                      )}
+                      {(app.status === "interview_scheduled" || app.status === "interview") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-primary text-primary hover:bg-primary/10"
+                          onClick={() => handleRescheduleInterview(app)}
+                        >
+                          <Pencil className="h-3 w-3 mr-2" />
+                          Reschedule Interview
                         </Button>
                       )}
                       <span className="text-xs text-gray-400">
@@ -504,9 +628,9 @@ export default function Applications() {
         <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Schedule Interview</DialogTitle>
+              <DialogTitle>{isEditing ? "Reschedule Interview" : "Schedule Interview"}</DialogTitle>
               <DialogDescription>
-                {selectedApplication && `Schedule an interview for ${selectedApplication.jobs?.title} at ${selectedApplication.jobs?.company_name}`}
+                {selectedApplication && `${isEditing ? "Reschedule" : "Schedule"} an interview for ${selectedApplication.jobs?.title} at ${selectedApplication.jobs?.company_name}`}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -592,22 +716,17 @@ export default function Applications() {
               <div className="flex gap-2 justify-end pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setScheduleDialogOpen(false);
-                    setInterviewDate("");
-                    setInterviewTime("");
-                    setInterviewMode("");
-                    setMeetingLink("");
-                    setLocation("");
-                  }}
+                  onClick={resetDialog}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSubmitSchedule}
-                  disabled={scheduleInterviewMutation.isPending}
+                  disabled={scheduleInterviewMutation.isPending || rescheduleInterviewMutation.isPending}
                 >
-                  {scheduleInterviewMutation.isPending ? "Scheduling..." : "Schedule Interview"}
+                  {scheduleInterviewMutation.isPending || rescheduleInterviewMutation.isPending
+                    ? (isEditing ? "Rescheduling..." : "Scheduling...")
+                    : (isEditing ? "Reschedule Interview" : "Schedule Interview")}
                 </Button>
               </div>
             </div>
